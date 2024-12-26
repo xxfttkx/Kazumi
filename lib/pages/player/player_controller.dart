@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -13,6 +14,7 @@ import 'package:kazumi/utils/storage.dart';
 import 'package:logger/logger.dart';
 import 'package:kazumi/utils/logger.dart';
 import 'package:kazumi/utils/utils.dart';
+
 
 part 'player_controller.g.dart';
 
@@ -72,6 +74,7 @@ abstract class _PlayerController with Store {
   bool hAenable = true;
   bool lowMemoryMode = false;
   bool autoPlay = true;
+  late Map<String,String> httpHeaders;
 
   Future<void> init(String url, {int offset = 0}) async {
     videoUrl = url;
@@ -98,7 +101,7 @@ abstract class _PlayerController with Store {
       episodeFromTitle = videoPageController.currentEpisode;
     }
     getDanDanmaku(videoPageController.title, episodeFromTitle);
-    mediaPlayer = await createVideoController(offset: offset);
+    await createVideoController(offset: offset);
     playerSpeed =
         setting.get(SettingBoxKey.defaultPlaySpeed, defaultValue: 1.0);
     setPlaybackSpeed(playerSpeed);
@@ -120,7 +123,7 @@ abstract class _PlayerController with Store {
     KazumiLogger().log(Level.info, 'media_kit UA: $userAgent');
     String referer = videoPageController.currentPlugin.referer;
     KazumiLogger().log(Level.info, 'media_kit Referer: $referer');
-    var httpHeaders = {
+    httpHeaders = {
       'user-agent': userAgent,
       if (referer.isNotEmpty) 'referer': referer,
     };
@@ -244,5 +247,46 @@ abstract class _PlayerController with Store {
       await mediaPlayer.stop();
       loading = true;
     } catch (_) {}
+  }
+
+  
+  Set<Duration> setDuration = {};
+  Future<bool> captureFrame(Duration time) async {
+    var timeStamp = roundedToNearest10(time);
+    var pic = timeStampToPic[timeStamp];
+    if (pic == null) {
+      if(!setDuration.add(timeStamp)){
+        return false;
+      }
+      mediaPlayer.screenshot().then((res) {
+        if (res == null) {
+          return false;
+        }
+        timeStampToPic[timeStamp] = res;
+      }).catchError((e) {
+        KazumiLogger().log(Level.error, 'screenshot 失败: ${e.toString()}');
+        return null;
+      });
+    }
+    return true;
+  }
+
+  Map<Duration,Uint8List> timeStampToPic = {};
+  Duration? lastDuration;
+  Uint8List? onDragUpdate(Duration timeStamp) {
+    var roundedTimeStamp = roundedToNearest10(timeStamp);
+    return timeStampToPic[roundedTimeStamp];
+  }
+  
+  int gap = 3;
+  Duration roundedToNearest10(Duration timeStamp) {
+    int seconds = timeStamp.inSeconds;
+    int roundedSeconds = (seconds ~/ gap) * gap; // 向下取整到10的倍数
+    return Duration(seconds: roundedSeconds);
+  }
+
+  void onChangeEpisode(){
+    timeStampToPic.clear();
+    setDuration.clear();
   }
 }

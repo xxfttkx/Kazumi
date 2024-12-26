@@ -306,6 +306,7 @@ class _PlayerItemState extends State<PlayerItem>
       // 历史记录相关
       if (playerController.mediaPlayer.state.playing &&
           !videoPageController.loading) {
+        playerController.captureFrame(playerController.currentPosition);
         historyController.updateHistory(
             videoPageController.currentEpisode,
             videoPageController.currentRoad,
@@ -328,6 +329,7 @@ class _PlayerItemState extends State<PlayerItem>
         try {
           playerTimer!.cancel();
         } catch (_) {}
+        playerController.onChangeEpisode();
         widget.changeEpisode(
             videoPageController.currentEpisode + 1,
             currentRoad: videoPageController.currentRoad);
@@ -1291,7 +1293,7 @@ class _PlayerItemState extends State<PlayerItem>
                     ),
 
                     // 右侧锁定按钮
-                    (Utils.isDesktop() || !videoPageController.isFullscreen)
+                    (!Utils.isDesktop() || !videoPageController.isFullscreen)
                         ? Container()
                         : Positioned(
                             right: 0,
@@ -1566,7 +1568,8 @@ class _PlayerItemState extends State<PlayerItem>
                         visible: !lockPanel,
                         child: SlideTransition(
                           position: _bottomOffsetAnimation,
-                          child: Row(
+                          child: Column(children: [previewWidget(),
+                          Row(
                             children: [
                               IconButton(
                                 color: Colors.white,
@@ -1627,6 +1630,20 @@ class _PlayerItemState extends State<PlayerItem>
                                     playerController.seek(duration);
                                     playerTimer = getPlayerTimer(); //Bug_time
                                   },
+                                  onDragStart:(_)=>{setState(() {
+                                        showDragTime = true;
+                                      })},
+                                  onDragEnd:()=>{setState(() {
+                                    showDragTime = false;
+                                  })},
+                                  onDragUpdate: (details) {
+                                      mouseDuration = details.timeStamp;
+                                      var pic = playerController.onDragUpdate(mouseDuration);
+                                      setState(() {
+                                        mouseDuration = mouseDuration;
+                                        this.pic = pic;
+                                      });
+                                    },
                                 ),
                               ),
                               ((Utils.isCompact()) &&
@@ -1701,7 +1718,7 @@ class _PlayerItemState extends State<PlayerItem>
                                       },
                                     ),
                             ],
-                          ),
+                          )]),
                         ),
                       ),
                     ),
@@ -1752,5 +1769,39 @@ class _PlayerItemState extends State<PlayerItem>
         ),
       );
     });
+  }
+
+
+  Uint8List? pic;
+  bool showDragTime = false;
+  Duration mouseDuration = const Duration(seconds: 0);
+  Widget previewWidget() {
+    return showDragTime?Column(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [Container(
+      width: 192,
+      height: 108,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.white, width: 1),
+      ),
+      child: pic != null
+          ? Image.memory(
+          pic!,
+          width: 400,
+          height: 300,
+          fit: BoxFit.cover,
+        )
+          : null,
+    ),
+    const SizedBox(height: 4),
+      Text(
+          "${Utils.durationToString(mouseDuration)} / ${Utils.durationToString(playerController.duration)}",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: !Utils.isCompact() ? 16.0 : 12.0,
+          )),
+    ]):const Text("");
   }
 }
