@@ -102,7 +102,7 @@ class BangumiHTTP {
           "type": [2],
           "tag": ["日本"],
           "rank": [">$rank", "<=1050"],
-          "nsfw": false
+          "nsfw": true
         },
       };
     } else {
@@ -112,7 +112,7 @@ class BangumiHTTP {
         "filter": {
           "type": [2],
           "tag": [tag],
-          "rank": [">$rank", "<=99999"],
+          "rank": [">${rank * 2}", "<=99999"],
           "nsfw": false
         },
       };
@@ -172,8 +172,8 @@ class BangumiHTTP {
       'sort': sort,
       "filter": {
         "type": [2],
-        "tag": tags,
-        "rank": (sort == 'rank') ? [">0", "<=99999"] : [">=0", "<=99999"],
+        "tag": [],
+        "rank": [">0", "<=99999"],
         "nsfw": false
       },
     };
