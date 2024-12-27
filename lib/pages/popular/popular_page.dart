@@ -296,6 +296,8 @@ class _PopularPageState extends State<PopularPage>
 
   Widget tagFilter() {
     List<String> tags = [
+      '卖肉',
+      '肉番',
       '日常',
       '原创',
       '校园',

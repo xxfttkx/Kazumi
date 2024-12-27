@@ -102,7 +102,7 @@ class BangumiHTTP {
           "type": [2],
           "tag": ["日本"],
           "rank": [">$rank", "<=1050"],
-          "nsfw": false
+          "nsfw": true
         },
       };
     } else {
@@ -113,7 +113,7 @@ class BangumiHTTP {
           "type": [2],
           "tag": [tag],
           "rank": [">${rank * 2}", "<=99999"],
-          "nsfw": false
+          "nsfw": true
         },
       };
     }
@@ -146,7 +146,7 @@ class BangumiHTTP {
         "type": [2],
         "tag": [],
         "rank": [">0", "<=99999"],
-        "nsfw": false
+        "nsfw": true
       },
     };
 
