@@ -15,6 +15,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:kazumi/utils/logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
+import 'dart:ffi';
+import 'package:media_kit/ffi/ffi.dart';
 
 class Utils {
   static final Random random = Random();
@@ -539,5 +541,21 @@ class Utils {
   // 获取当前解复用器
   static Future<String> getCurrentDemux() async {
     return 'MPV';
+  }
+
+  static void OpenVideo() {
+    final dylib = DynamicLibrary.open('assets/ddmpeg/libffmpeg.dll');
+    final extractThumbnail = dylib.lookupFunction<Void Function(Pointer<Utf8>),
+        void Function(Pointer<Utf8>)>('extract_thumbnail');
+    // 视频文件路径
+    final videoPath = "example_video.mp4".toNativeUtf8();
+    final outputPath = "output_thumbnail.png".toNativeUtf8();
+
+    // 调用函数，提取缩略图
+    extractThumbnail(videoPath);
+
+    // 释放内存
+    calloc.free(videoPath);
+    print("Thumbnail extraction completed!");
   }
 }
