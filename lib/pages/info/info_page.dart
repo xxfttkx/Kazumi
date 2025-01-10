@@ -322,10 +322,8 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                 setState(() {});
               }
             }
+            break;
           }
-        }
-        if (mounted) {
-          setState(() {});
         }
       }
     }

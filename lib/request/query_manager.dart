@@ -67,7 +67,6 @@ class QueryManager {
         _controller.add(result);
       }).catchError((error) {
         if (_isCancelled) return;
-        
         infoController.pluginSearchStatus[plugin.name] = 'error';
         --count;
         if (count == 0) return;
