@@ -36,126 +36,27 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
   final VideoPageController videoPageController =
       Modular.get<VideoPageController>();
   final PluginsController pluginsController = Modular.get<PluginsController>();
-  late TabController sourceTabController;
-  late TabController infoTabController;
+  final PopularController popularController = Modular.get<PopularController>();
+  late TabController tabController;
 
-  bool commentsIsLoading = false;
-  bool charactersIsLoading = false;
-  bool commentsQueryTimeout = false;
-  bool charactersQueryTimeout = false;
-  bool staffIsLoading = false;
-  bool staffQueryTimeout = false;
-
-  final inputBangumiIten = Modular.args.data as BangumiItem;
-
-  Future<void> loadCharacters() async {
-    if (charactersIsLoading) return;
-    setState(() {
-      charactersIsLoading = true;
-      charactersQueryTimeout = false;
-    });
-    infoController
-        .queryBangumiCharactersByID(infoController.bangumiItem.id)
-        .then((_) {
-      if (infoController.characterList.isEmpty && mounted) {
-        setState(() {
-          charactersIsLoading = false;
-          charactersQueryTimeout = true;
-        });
-      }
-      if (infoController.characterList.isNotEmpty && mounted) {
-        setState(() {
-          charactersIsLoading = false;
-        });
-      }
-    });
-  }
-
-  Future<void> loadStaff() async {
-    if (staffIsLoading) return;
-    setState(() {
-      staffIsLoading = true;
-      staffQueryTimeout = false;
-    });
-    infoController
-        .queryBangumiStaffsByID(infoController.bangumiItem.id)
-        .then((_) {
-      if (infoController.staffList.isEmpty && mounted) {
-        setState(() {
-          staffIsLoading = false;
-          staffQueryTimeout = true;
-        });
-      }
-      if (infoController.staffList.isNotEmpty && mounted) {
-        setState(() {
-          staffIsLoading = false;
-        });
-      }
-    });
-  }
-
-  Future<void> loadMoreComments({int offset = 0}) async {
-    if (commentsIsLoading) return;
-    setState(() {
-      commentsIsLoading = true;
-      commentsQueryTimeout = false;
-    });
-    infoController
-        .queryBangumiCommentsByID(infoController.bangumiItem.id, offset: offset)
-        .then((_) {
-      if (infoController.commentsList.isEmpty && mounted) {
-        setState(() {
-          commentsIsLoading = false;
-          commentsQueryTimeout = true;
-        });
-      }
-      if (infoController.commentsList.isNotEmpty && mounted) {
-        setState(() {
-          commentsIsLoading = false;
-        });
-      }
-    });
-  }
+  /// Concurrent query manager
+  late QueryManager queryManager;
 
   @override
   void initState() {
     super.initState();
-    infoController.bangumiItem = inputBangumiIten;
-    infoController.characterList.clear();
-    infoController.commentsList.clear();
-    infoController.staffList.clear();
-    infoController.pluginSearchResponseList.clear();
-    videoPageController.currentEpisode = 1;
-    // Because the gap between different bangumi API response is too large, sometimes we need to query the bangumi info again
-    // We need the type parameter to determine whether to attach the new data to the old data
-    // We can't generally replace the old data with the new data, because the old data contains images url, update them will cause the image to reload and flicker
-    if (infoController.bangumiItem.summary == '' ||
-        infoController.bangumiItem.votesCount.isEmpty) {
-      queryBangumiInfoByID(infoController.bangumiItem.id, type: 'attach');
+    if (infoController.bangumiItem.summary == '' || infoController.bangumiItem.tags.isEmpty) {
+      queryBangumiInfoByID(infoController.bangumiItem.id);
     }
-    sourceTabController =
+    queryManager = QueryManager();
+    queryManager.querySource(popularController.keyword);
+    tabController =
         TabController(length: pluginsController.pluginList.length, vsync: this);
-    infoTabController = TabController(length: 5, vsync: this);
-    infoTabController.addListener(() {
-      int index = infoTabController.index;
-      if (index == 1 &&
-          infoController.commentsList.isEmpty &&
-          !commentsIsLoading) {
-        loadMoreComments();
-      }
-      if (index == 2 &&
-          infoController.characterList.isEmpty &&
-          !charactersIsLoading) {
-        loadCharacters();
-      }
-      if (index == 4 && infoController.staffList.isEmpty && !staffIsLoading) {
-        loadStaff();
-      }
-    });
   }
 
   @override
   void dispose() {
+    queryManager.cancel();
     infoController.characterList.clear();
     infoController.commentsList.clear();
     infoController.staffList.clear();
@@ -182,205 +83,251 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
         .get(SettingBoxKey.showWindowButton, defaultValue: false);
     return PopScope(
       canPop: true,
-      child: DefaultTabController(
-        length: tabs.length,
-        child: Scaffold(
-          body: NestedScrollView(
-            headerSliverBuilder:
-                (BuildContext context, bool innerBoxIsScrolled) {
-              return <Widget>[
-                SliverOverlapAbsorber(
-                  handle:
-                      NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                  sliver: SliverAppBar.medium(
-                    title: EmbeddedNativeControlArea(
-                      child: dtb.DragToMoveArea(
-                        child: Container(
-                          width: double.infinity,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            infoController.bangumiItem.nameCn == ''
-                                ? infoController.bangumiItem.name
-                                : infoController.bangumiItem.nameCn,
-                          ),
-                        ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                color: Theme.of(context).brightness == Brightness.light
+                    ? Colors.white
+                    : Colors.black,
+                child: Opacity(
+                  opacity: 0.2,
+                  child: LayoutBuilder(builder: (context, boxConstraints) {
+                    return ImageFiltered(
+                      imageFilter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                      child: NetworkImgLayer(
+                        src: infoController.bangumiItem.images['large'] ?? '',
+                        width: boxConstraints.maxWidth,
+                        height: boxConstraints.maxHeight,
+                        fadeInDuration: const Duration(milliseconds: 0),
+                        fadeOutDuration: const Duration(milliseconds: 0),
                       ),
-                    ),
-                    automaticallyImplyLeading: false,
-                    scrolledUnderElevation: 0.0,
-                    leading: EmbeddedNativeControlArea(
-                      child: IconButton(
-                        onPressed: () {
-                          Navigator.maybePop(context);
-                        },
-                        icon: Icon(Icons.arrow_back),
-                      ),
-                    ),
-                    actions: [
-                      if (innerBoxIsScrolled)
-                        EmbeddedNativeControlArea(
-                          child: CollectButton(
-                            bangumiItem: infoController.bangumiItem,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      EmbeddedNativeControlArea(
-                        child: IconButton(
-                          onPressed: () {
-                            launchUrl(
-                              Uri.parse(
-                                  'https://bangumi.tv/subject/${infoController.bangumiItem.id}'),
-                              mode: LaunchMode.externalApplication,
-                            );
-                          },
-                          icon: const Icon(Icons.open_in_browser_rounded),
-                        ),
-                      ),
-                      if (!showWindowButton && Utils.isDesktop())
-                        CloseButton(onPressed: () => windowManager.close()),
-                      SizedBox(width: 8),
-                    ],
-                    toolbarHeight: (Platform.isMacOS && showWindowButton)
-                        ? kToolbarHeight + 22
-                        : kToolbarHeight,
-                    stretch: true,
-                    centerTitle: false,
-                    expandedHeight: (Platform.isMacOS && showWindowButton)
-                        ? 308 + kTextTabBarHeight + kToolbarHeight + 22
-                        : 308 + kTextTabBarHeight + kToolbarHeight,
-                    collapsedHeight: (Platform.isMacOS && showWindowButton)
-                        ? kTextTabBarHeight +
-                            kToolbarHeight +
-                            MediaQuery.paddingOf(context).top +
-                            22
-                        : kTextTabBarHeight +
-                            kToolbarHeight +
-                            MediaQuery.paddingOf(context).top,
-                    flexibleSpace: FlexibleSpaceBar(
-                      collapseMode: CollapseMode.pin,
-                      background: Observer(builder: (context) {
-                        return Stack(
-                          children: [
-                            // No background image when loading to make loading looks better
-                            if (!infoController.isLoading)
-                              Positioned.fill(
-                                bottom: kTextTabBarHeight,
-                                child: IgnorePointer(
-                                  child: Opacity(
-                                    opacity: 0.4,
-                                    child: LayoutBuilder(
-                                      builder: (context, boxConstraints) {
-                                        return ImageFiltered(
-                                          imageFilter: ImageFilter.blur(
-                                              sigmaX: 15.0, sigmaY: 15.0),
-                                          child: ShaderMask(
-                                            shaderCallback: (Rect bounds) {
-                                              return const LinearGradient(
-                                                begin: Alignment.topCenter,
-                                                end: Alignment.bottomCenter,
-                                                colors: [
-                                                  Colors.white,
-                                                  Colors.transparent,
-                                                ],
-                                                stops: [0.8, 1],
-                                              ).createShader(bounds);
-                                            },
-                                            child: NetworkImgLayer(
-                                              src: infoController.bangumiItem
-                                                      .images['large'] ??
-                                                  '',
-                                              width: boxConstraints.maxWidth,
-                                              height: boxConstraints.maxHeight,
-                                              fadeInDuration: const Duration(
-                                                  milliseconds: 0),
-                                              fadeOutDuration: const Duration(
-                                                  milliseconds: 0),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            SafeArea(
-                              bottom: false,
-                              child: EmbeddedNativeControlArea(
-                                child: Align(
-                                  alignment: Alignment.topCenter,
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        16, kToolbarHeight, 16, 0),
-                                    child: BangumiInfoCardV(
-                                      bangumiItem: infoController.bangumiItem,
-                                      isLoading: infoController.isLoading,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                    );
+                  }),
+                ),
+              ),
+            ),
+          ),
+          Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: SysAppBar(
+              backgroundColor: Colors.transparent,
+              actions: [
+                IconButton(
+                    onPressed: () {
+                      int currentIndex = tabController.index;
+                      KazumiDialog.show(builder: (context) {
+                        return AlertDialog(
+                          title: const Text('退出确认'),
+                          content: const Text('您想要离开 Kazumi 并在浏览器中打开此视频源吗？'),
+                          actions: [
+                            TextButton(
+                                onPressed: () => KazumiDialog.dismiss(),
+                                child: const Text('取消')),
+                            TextButton(
+                                onPressed: () {
+                                  KazumiDialog.dismiss();
+                                  launchUrl(Uri.parse(pluginsController
+                                      .pluginList[currentIndex].baseUrl));
+                                },
+                                child: const Text('确认')),
                           ],
                         );
+                      });
+                    },
+                    icon: const Icon(Icons.open_in_browser))
+              ],
+            ),
+            body: Column(
+              children: [
+                BangumiInfoCardV(bangumiItem: infoController.bangumiItem),
+                TabBar(
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.center,
+                  controller: tabController,
+                  tabs: pluginsController.pluginList
+                      .map((plugin) => Observer(
+                            builder: (context) => Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  plugin.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium!
+                                          .fontSize,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface),
+                                ),
+                                const SizedBox(width: 5.0),
+                                Container(
+                                  width: 8.0,
+                                  height: 8.0,
+                                  decoration: BoxDecoration(
+                                    color: infoController.pluginSearchStatus[
+                                                plugin.name] ==
+                                            'success'
+                                        ? Colors.green
+                                        : (infoController.pluginSearchStatus[
+                                                    plugin.name] ==
+                                                'pending')
+                                            ? Colors.grey
+                                            : Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ))
+                      .toList(),
+                ),
+                Expanded(
+                  child: Observer(
+                    builder: (context) => TabBarView(
+                      controller: tabController,
+                      children: List.generate(
+                          pluginsController.pluginList.length, (pluginIndex) {
+                        var plugin = pluginsController.pluginList[pluginIndex];
+                        var cardList = <Widget>[];
+                        for (var searchResponse
+                            in infoController.pluginSearchResponseList) {
+                          if (searchResponse.pluginName == plugin.name) {
+                            for (var searchItem in searchResponse.data) {
+                              cardList.add(Card(
+                                color: Colors.transparent,
+                                child: ListTile(
+                                  tileColor: Colors.transparent,
+                                  title: Text(searchItem.name),
+                                  onTap: () async {
+                                    KazumiDialog.showLoading(msg: '获取中');
+                                    videoPageController.currentPlugin = plugin;
+                                    videoPageController.title = searchItem.name;
+                                    videoPageController.src = searchItem.src;
+                                    try {
+                                      await infoController.queryRoads(
+                                          searchItem.src, plugin.name);
+                                      KazumiDialog.dismiss();
+                                      Modular.to.pushNamed('/video/');
+                                    } catch (e) {
+                                      KazumiLogger()
+                                          .log(Level.error, e.toString());
+                                      KazumiDialog.dismiss();
+                                    }
+                                  },
+                                ),
+                              ));
+                            }
+                          }
+                        }
+                        return ListView(children: cardList);
                       }),
                     ),
-                    forceElevated: innerBoxIsScrolled,
-                    bottom: TabBar(
-                      controller: infoTabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.center,
-                      dividerHeight: 0,
-                      tabs: tabs.map((name) => Tab(text: name)).toList(),
-                    ),
                   ),
-                ),
-              ];
-            },
-            body: Observer(builder: (context) {
-              return InfoTabView(
-                tabController: infoTabController,
-                bangumiItem: infoController.bangumiItem,
-                commentsQueryTimeout: commentsQueryTimeout,
-                charactersQueryTimeout: charactersQueryTimeout,
-                staffQueryTimeout: staffQueryTimeout,
-                loadMoreComments: loadMoreComments,
-                loadCharacters: loadCharacters,
-                loadStaff: loadStaff,
-                commentsList: infoController.commentsList,
-                characterList: infoController.characterList,
-                staffList: infoController.staffList,
-                isLoading: infoController.isLoading,
-              );
-            }),
+                )
+              ],
+            ),
+            floatingActionButton: FloatingActionButton(
+              child: const Icon(Icons.widgets_rounded),
+              onPressed: () async {
+                showModalBottomSheet(
+                    isScrollControlled: true,
+                    enableDrag: false,
+                    constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 3 / 4,
+                        maxWidth: (Utils.isDesktop() || Utils.isTablet())
+                            ? MediaQuery.of(context).size.width * 9 / 16
+                            : MediaQuery.of(context).size.width),
+                    clipBehavior: Clip.antiAlias,
+                    context: context,
+                    builder: (context) {
+                      return const CommentsBottomSheet();
+                    });
+              },
+            ),
           ),
-          floatingActionButton: FloatingActionButton.extended(
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: Text('开始观看'),
-            onPressed: () async {
-              showModalBottomSheet(
-                isScrollControlled: true,
-                constraints: BoxConstraints(
-                  maxHeight: (MediaQuery.sizeOf(context).height >=
-                          LayoutBreakpoint.compact['height']!)
-                      ? MediaQuery.of(context).size.height * 3 / 4
-                      : MediaQuery.of(context).size.height,
-                  maxWidth: (MediaQuery.sizeOf(context).width >=
-                          LayoutBreakpoint.medium['width']!)
-                      ? MediaQuery.of(context).size.width * 9 / 16
-                      : MediaQuery.of(context).size.width,
-                ),
-                clipBehavior: Clip.antiAlias,
-                backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                showDragHandle: true,
-                context: context,
-                builder: (context) {
-                  return SourceSheet(tabController: sourceTabController, infoController: infoController);
-                },
-              );
-            },
-          ),
+        ],
+      ),
+    );
+  }
+
+  Widget pluginTabBarView() {
+    return Expanded(
+      child: Observer(
+        builder: (context) => TabBarView(
+          controller: tabController,
+          children:
+              List.generate(pluginsController.pluginList.length, (pluginIndex) {
+            var plugin = pluginsController.pluginList[pluginIndex];
+            var cardList = <Widget>[];
+            for (var searchResponse
+                in infoController.pluginSearchResponseList) {
+              if (searchResponse.pluginName == plugin.name) {
+                for (var searchItem in searchResponse.data) {
+                  final num = pluginToEpisodesNum.containsKey(plugin.name) &&
+                          pluginToEpisodesNum[plugin.name]!
+                              .containsKey(searchItem.src)
+                      ? pluginToEpisodesNum[plugin.name]![searchItem.src]
+                      : 0;
+                  cardList.add(Card(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      tileColor: Colors.transparent,
+                      title: Text('${searchItem.name}  (${num==0?"loading...":num})'),
+                      onTap: () async {
+                        KazumiDialog.showLoading(msg: '获取中');
+                        videoPageController.currentPlugin = plugin;
+                        videoPageController.title = searchItem.name;
+                        videoPageController.src = searchItem.src;
+                        try {
+                          await infoController.queryRoads(
+                              searchItem.src, plugin.name);
+                          KazumiDialog.dismiss();
+                          Modular.to.pushNamed('/video/');
+                        } catch (e) {
+                          KazumiLogger().log(Level.error, e.toString());
+                          KazumiDialog.dismiss();
+                        }
+                      },
+                    ),
+                  ));
+                }
+              }
+            }
+            return ListView(children: cardList);
+          }),
         ),
       ),
     );
+  }
+
+  Future<void> onPluginChange({first = false}) async {
+    if (tabController.indexIsChanging||first) {
+      var pluginIndex = tabController.index;
+      var plugin = pluginsController.pluginList[pluginIndex];
+      var name = plugin.name;
+      if (!pluginToEpisodesNum.containsKey(name)) {
+        Map<String, int> episodesNumList = {};
+        pluginToEpisodesNum[name] = episodesNumList;
+        for (var searchResponse in infoController.pluginSearchResponseList) {
+          if (searchResponse.pluginName == plugin.name) {
+            for (var searchItem in searchResponse.data) {
+              final num =
+                  await infoController.getEpisodesNum(searchItem.src, name);
+              if (mounted) {
+                episodesNumList[searchItem.src] = num;
+                setState(() {});
+              }
+            }
+          }
+        }
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    }
   }
 }

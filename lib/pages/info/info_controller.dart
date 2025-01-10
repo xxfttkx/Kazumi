@@ -1,5 +1,6 @@
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
+import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/pages/collect/collect_controller.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
@@ -58,6 +59,24 @@ abstract class _InfoController with Store {
         isLoading = false;
       }
     });
+  }
+
+  Future<void> queryRoads(String url, String pluginName) async {
+    final PluginsController pluginsController =
+        Modular.get<PluginsController>();
+    final VideoPageController videoPageController =
+        Modular.get<VideoPageController>();
+    videoPageController.roadList.clear();
+    for (Plugin plugin in pluginsController.pluginList) {
+      if (plugin.name == pluginName) {
+        videoPageController.roadList
+            .addAll(await plugin.querychapterRoads(url));
+      }
+    }
+    KazumiLogger()
+        .log(Level.info, '播放列表长度 ${videoPageController.roadList.length}');
+    KazumiLogger().log(
+        Level.info, '第一播放列表选集数 ${videoPageController.roadList[0].data.length}');
   }
 
   Future<void> queryBangumiCommentsByID(int id, {int offset = 0}) async {
