@@ -51,7 +51,7 @@ abstract class _PopularController with Store {
   Future<bool> queryBangumiListFeedByTag(String tag) async {
     currentTag = tag;
     isLoadingMore = true;
-    int randomNumber = Random().nextInt(1000) + 1;
+    int randomNumber = Random().nextInt(5000) + 1;
     var result = await BangumiHTTP.getBangumiList(rank: randomNumber, tag: tag);
     if (currentTag == tag) {
       bangumiList.clear();
