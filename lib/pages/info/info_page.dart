@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
@@ -38,8 +39,11 @@ class _InfoPageState extends State<InfoPage>
   @override
   void initState() {
     super.initState();
+    // Because the gap between different bangumi API reponse is too large, sometimes we need to query the bangumi info again
+    // We need the type parameter to determine whether to attach the new data to the old data
+    // We can't generally replace the old data with the new data, because the old data containes images url, update them will cause the image to reload and flicker
     if (infoController.bangumiItem.summary == '' || infoController.bangumiItem.tags.isEmpty) {
-      queryBangumiInfoByID(infoController.bangumiItem.id);
+      queryBangumiInfoByID(infoController.bangumiItem.id, type: 'attach');
     }
     queryManager = QueryManager();
     queryManager.querySource(popularController.keyword);
@@ -56,9 +60,9 @@ class _InfoPageState extends State<InfoPage>
     super.dispose();
   }
 
-  Future<void> queryBangumiInfoByID(int id) async {
+  Future<void> queryBangumiInfoByID(int id, {String type = "init"}) async {
     try {
-      await infoController.queryBangumiInfoByID(id);
+      await infoController.queryBangumiInfoByID(id, type: type);
       setState(() {});
     } catch (e) {
       KazumiLogger().log(Level.error, e.toString());
@@ -80,12 +84,15 @@ class _InfoPageState extends State<InfoPage>
                 child: Opacity(
                   opacity: 0.2,
                   child: LayoutBuilder(builder: (context, boxConstraints) {
-                    return NetworkImgLayer(
-                      src: infoController.bangumiItem.images['large'] ?? '',
-                      width: boxConstraints.maxWidth,
-                      height: boxConstraints.maxHeight,
-                      fadeInDuration: const Duration(milliseconds: 0),
-                      fadeOutDuration: const Duration(milliseconds: 0),
+                    return ImageFiltered(
+                      imageFilter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                      child: NetworkImgLayer(
+                        src: infoController.bangumiItem.images['large'] ?? '',
+                        width: boxConstraints.maxWidth,
+                        height: boxConstraints.maxHeight,
+                        fadeInDuration: const Duration(milliseconds: 0),
+                        fadeOutDuration: const Duration(milliseconds: 0),
+                      ),
                     );
                   }),
                 ),
