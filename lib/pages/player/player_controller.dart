@@ -223,7 +223,7 @@ abstract class _PlayerController with Store {
   }
 
   Future<void> setVolume(double value) async {
-    value = value.clamp(0.0, 100.0);
+    value = value.clamp(0.0, 200.0);
     volume = value;
     try {
       if (Utils.isDesktop()) {
