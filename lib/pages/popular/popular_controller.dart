@@ -48,8 +48,12 @@ abstract class _PopularController with Store {
     isTimeOut = trendList.isEmpty;
   }
 
-  Future<void> queryBangumiByTag({String type = 'add'}) async {
-    if (type == 'init') {
+  Future<bool> queryBangumiListFeedByTag(String tag) async {
+    currentTag = tag;
+    isLoadingMore = true;
+    int randomNumber = Random().nextInt(1000) + 1;
+    var result = await BangumiHTTP.getBangumiList(rank: randomNumber, tag: tag);
+    if (currentTag == tag) {
       bangumiList.clear();
     }
     isLoadingMore = true;
