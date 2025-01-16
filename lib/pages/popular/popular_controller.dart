@@ -29,6 +29,30 @@ abstract class _PopularController with Store {
   @observable
   bool isTimeOut = false;
 
+  Set<BangumiItem> meatBangumis = {};
+
+  void filterBangumiList(List<BangumiItem> list) {
+    for (int i = list.length - 1; i >= 0; --i) {
+      if (meatBangumis.contains(list[i])) {
+        list.removeAt(i);
+      } else {
+        meatBangumis.add(list[i]);
+      }
+    }
+  }
+
+  void clearList() {
+    bangumiList.clear();
+    meatBangumis.clear();
+  }
+
+  void endQuery(List<BangumiItem> result) {
+    filterBangumiList(result);
+    bangumiList.addAll(result);
+    isLoadingMore = false;
+    isTimeOut = bangumiList.isEmpty;
+  }
+
   void setSearchKeyword(String s) {
     isSearching = s.isNotEmpty;
     searchKeyword = s;
@@ -36,13 +60,11 @@ abstract class _PopularController with Store {
 
   Future<bool> queryBangumiListFeed() async {
     isLoadingMore = true;
-    int randomNumber = Random().nextInt(1000) + 1;
+    int randomNumber = Random().nextInt(5000) + 1;
     var tag = currentTag;
     var result = await BangumiHTTP.getBangumiList(rank: randomNumber, tag: tag);
     if (currentTag == tag) {
-      bangumiList.addAll(result);
-      isLoadingMore = false;
-      isTimeOut = bangumiList.isEmpty;
+      endQuery(result);
       return true;
     }
     return false;
@@ -54,10 +76,8 @@ abstract class _PopularController with Store {
     int randomNumber = Random().nextInt(5000) + 1;
     var result = await BangumiHTTP.getBangumiList(rank: randomNumber, tag: tag);
     if (currentTag == tag) {
-      bangumiList.clear();
-      bangumiList.addAll(result);
-      isLoadingMore = false;
-      isTimeOut = bangumiList.isEmpty;
+      clearList();
+      endQuery(result);
       return true;
     }
     return false;
@@ -71,7 +91,7 @@ abstract class _PopularController with Store {
     currentTag = '';
     isLoadingMore = true;
     var result = await BangumiHTTP.bangumiSearch(keyword);
-    bangumiList.clear();
+    clearList();
     bangumiList.addAll(result);
     isLoadingMore = false;
   }
