@@ -752,7 +752,7 @@ packages:
     description:
       path: media_kit
       ref: main
-      resolved-ref: aef901f6abc9192aa74bf05036c2f520cebf3259
+      resolved-ref: c1734782ff3e950e59b057002b7e578f53e0cc61
       url: "https://github.com/Predidit/media-kit.git"
     source: git
     version: "1.1.11"

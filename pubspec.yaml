@@ -110,6 +110,21 @@ dependencies:
       path: ./libs/universal/media_kit_libs_video
 
 dependency_overrides:
+  media_kit:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: main
+      path: ./media_kit
+  media_kit_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: main
+      path: ./media_kit_video
+  media_kit_libs_video:
+    git:
+      url: https://github.com/Predidit/media-kit.git
+      ref: main
+      path: ./libs/universal/media_kit_libs_video
   media_kit_libs_linux:
     git:
       url: https://github.com/Predidit/media-kit.git
