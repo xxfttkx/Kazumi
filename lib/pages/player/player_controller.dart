@@ -313,4 +313,19 @@ abstract class _PlayerController with Store {
       danDanmakus[element.time.toInt()] = danmakuList;
     }
   }
+
+  bool bUseShader = false;
+  Future<void> useShader() async {
+    if(bUseShader){
+      await cleanShader();
+    }
+    else{
+      await mediaPlayer.setShader('1');
+    }
+    bUseShader = !bUseShader;
+  }
+
+  Future<void> cleanShader() async {
+    await mediaPlayer.setShader('');
+  }
 }
