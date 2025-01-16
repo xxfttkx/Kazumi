@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:mobx/mobx.dart';
 import 'package:flutter/services.dart' show rootBundle, AssetManifest;
 import 'package:path_provider/path_provider.dart';
@@ -52,5 +53,16 @@ abstract class _ShadersController with Store {
 
     KazumiLogger().log(Level.info,
         '$copiedFilesCount GLSL files copied to ${shadersDirectory.path}');
+  }
+
+  String getShadersAbsolutePath(SuperResolutionType type) {
+    final shaders = typeToShaders[type];
+    List<String> absolutePaths = shaders!.map((shader) {
+      return path.join(shadersDirectory.path, shader);
+    }).toList();
+    if (Platform.isWindows) {
+      return absolutePaths.join(';');
+    }
+    return absolutePaths.join(':');
   }
 }

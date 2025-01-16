@@ -99,27 +99,6 @@ const Map<String, String> hardwareDecodersList = {
   'rkmpp': 'Rockchip MPP (仅部分Rockchip芯片)',
 };
 
-// 超分辨率滤镜
-const List<String> mpvAnime4KShaders = [
-  'Anime4K_Clamp_Highlights.glsl',
-  'Anime4K_Restore_CNN_VL.glsl',
-  'Anime4K_Upscale_CNN_x2_VL.glsl',
-  'Anime4K_AutoDownscalePre_x2.glsl',
-  'Anime4K_AutoDownscalePre_x4.glsl',
-  'Anime4K_Upscale_CNN_x2_M.glsl'
-];
-
-// 超分辨率滤镜 (轻量)
-const List<String> mpvAnime4KShadersLite = [
-  'Anime4K_Clamp_Highlights.glsl',
-  'Anime4K_Restore_CNN_M.glsl',
-  'Anime4K_Restore_CNN_S.glsl',
-  'Anime4K_Upscale_CNN_x2_M.glsl',
-  'Anime4K_AutoDownscalePre_x2.glsl',
-  'Anime4K_AutoDownscalePre_x4.glsl',
-  'Anime4K_Upscale_CNN_x2_S.glsl'
-];
-
 // 可选播放倍速
 const List<double> defaultPlaySpeedList = [
   0.25,
@@ -222,3 +201,36 @@ const String danmakuOnSvg = '''
       <path fill="#00AEEC" fill-rule="evenodd" d="M22.846 14.627a1 1 0 0 0-1.412.075l-5.091 5.703-2.216-2.275-.097-.086-.008-.005a1 1 0 0 0-1.322 1.493l2.963 3.041.093.083.007.005a1 1 0 0 0 1.354-.124l5.81-6.505.08-.102.005-.008a1 1 0 0 0-.166-1.295Z" clip-rule="evenodd"/>
     </svg>
     ''';
+
+// 超分辨率滤镜
+const List<String> mpvAnime4KShaders = [
+  'Anime4K_Clamp_Highlights.glsl',
+  'Anime4K_Restore_CNN_VL.glsl',
+  'Anime4K_Upscale_CNN_x2_VL.glsl',
+  'Anime4K_AutoDownscalePre_x2.glsl',
+  'Anime4K_AutoDownscalePre_x4.glsl',
+  'Anime4K_Upscale_CNN_x2_M.glsl'
+];
+
+// 超分辨率滤镜 (轻量)
+const List<String> mpvAnime4KShadersLite = [
+  'Anime4K_Clamp_Highlights.glsl',
+  'Anime4K_Restore_CNN_M.glsl',
+  'Anime4K_Restore_CNN_S.glsl',
+  'Anime4K_Upscale_CNN_x2_M.glsl',
+  'Anime4K_AutoDownscalePre_x2.glsl',
+  'Anime4K_AutoDownscalePre_x4.glsl',
+  'Anime4K_Upscale_CNN_x2_S.glsl'
+];
+
+enum SuperResolutionType {
+  off,
+  efficiency,
+  quality,
+}
+
+const Map<SuperResolutionType,List<String>> typeToShaders = {
+  SuperResolutionType.off : [],
+  SuperResolutionType.efficiency : mpvAnime4KShaders,
+  SuperResolutionType.quality : mpvAnime4KShadersLite,
+};
