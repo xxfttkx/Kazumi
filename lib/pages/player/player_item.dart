@@ -680,7 +680,7 @@ class _PlayerItemState extends State<PlayerItem>
                                 // D键盘被按下
                                 if (event.logicalKey ==
                                     LogicalKeyboardKey.keyD) {
-                                  playerController.useShader();
+                                  _handleDanmaku();
                                 }
                               } else if (event is KeyRepeatEvent) {
                                 // 右方向键长按
