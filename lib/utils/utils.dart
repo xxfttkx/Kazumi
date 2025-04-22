@@ -2,20 +2,24 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'package:dio/dio.dart';
-import 'package:hive/hive.dart';
-import 'package:kazumi/utils/storage.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/material.dart';
-import 'package:kazumi/request/api.dart';
-import 'package:screen_pixel/screen_pixel.dart';
-import 'package:kazumi/utils/constants.dart';
-import 'package:logger/logger.dart';
+
+import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:kazumi/utils/logger.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
+import 'package:kazumi/request/api.dart';
+import 'package:kazumi/utils/constants.dart';
+import 'package:kazumi/utils/logger.dart';
+import 'package:kazumi/utils/mortis.dart';
+import 'package:kazumi/utils/storage.dart';
+import 'package:logger/logger.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:screen_pixel/screen_pixel.dart';
+import 'package:window_manager/window_manager.dart';
 
 class Utils {
   static final Random random = Random();
@@ -306,81 +310,6 @@ class Utils {
     return 0;
   }
 
-  static String richTextParser(String input) {
-    RegExp bgmEmoji = RegExp(r'\(bgm(\d+)\)');
-    input = input.replaceAllMapped(bgmEmoji, (match) {
-      if (match.group(1) == '11' || match.group(1) == '23') {
-        return '<image>https://bangumi.tv/img/smiles/bgm/${match.group(1)}.gif</image>';
-      }
-      int num = int.tryParse(match.group(1)!) ?? 0;
-      if (num < 24) {
-        return '<image>https://bangumi.tv/img/smiles/bgm/${match.group(1)}.png</image>';
-      }
-      if (num < 33) {
-        return '<image>https://bangumi.tv/img/smiles/tv/0${num - 23}.gif</image>';
-      }
-      return '<image>https://bangumi.tv/img/smiles/tv/${num - 23}.gif</image>';
-    });
-
-    RegExp quote = RegExp(r'\[quote\]([\s\S]*?)\[/quote\]');
-    input = input.replaceAllMapped(quote, (match) {
-      return '<q>${match.group(1)}</q><format_quote/>';
-    });
-
-    RegExp bold = RegExp(r'\[b\]([\s\S]*?)\[/b\]');
-    input = input.replaceAllMapped(bold, (match) {
-      return '<b>${match.group(1)}</b>';
-    });
-
-    RegExp img = RegExp(r'\[img([\s\S]*?)\]([\s\S]*?)\[/img\]');
-    input = input.replaceAllMapped(img, (match) {
-      return '<image>${match.group(2)}</image>';
-    });
-
-    RegExp strikeThrough = RegExp(r'\[s\]([\s\S]*?)\[/s\]');
-    input = input.replaceAllMapped(strikeThrough, (match) {
-      return '<s>${match.group(1)}</s>';
-    });
-
-    RegExp underLine = RegExp(r'\[u\]([\s\S]*?)\[/u\]');
-    input = input.replaceAllMapped(underLine, (match) {
-      return '<u>${match.group(1)}</u>';
-    });
-
-    RegExp italic = RegExp(r'\[i\]([\s\S]*?)\[/i\]');
-    input = input.replaceAllMapped(italic, (match) {
-      return '<i>${match.group(1)}</i>';
-    });
-
-    RegExp ignore = RegExp(r'\[(mask|code)\]([\s\S]*?)\[/\1\]');
-    input = input.replaceAllMapped(ignore, (match) {
-      return '${match.group(2)}';
-    });
-
-    RegExp link = RegExp(r'\[url=([\s\S]*?)\]([\s\S]*?)\[/url\]');
-    input = input.replaceAllMapped(link, (match) {
-      return '<link href="${match.group(1)}">${match.group(2)}</link>';
-    });
-
-    RegExp color = RegExp(r'\[color=([\s\S]*?)\]([\s\S]*?)\[/color\]');
-    input = input.replaceAllMapped(color, (match) {
-      return '<color color="${match.group(1)}">${match.group(2)}</color>';
-    });
-
-    RegExp size = RegExp(r'\[size=(\d+)\]([\s\S]*?)\[/size\]');
-    input = input.replaceAllMapped(size, (match) {
-      return '<size size="${match.group(1)}">${match.group(2)}</size>';
-    });
-
-    // 为了解决一些特殊情况再执行一次
-    RegExp secondColor = RegExp(r'\[color=([\s\S]*?)\]([\s\S]*?)\[/color\]');
-    input = input.replaceAllMapped(secondColor, (match) {
-      return '<color color="${match.group(1)}">${match.group(2)}</color>';
-    });
-
-    return input;
-  }
-
   /// 判断是否为桌面设备
   static bool isDesktop() {
     return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
@@ -420,6 +349,7 @@ class Utils {
     return false;
   }
 
+  // Deprecated
   static Future<void> enterWindowsFullscreen() async {
     if (Platform.isWindows) {
       const platform = MethodChannel('com.predidit.kazumi/intent');
@@ -431,6 +361,7 @@ class Utils {
     }
   }
 
+  // Deprecated
   static Future<void> exitWindowsFullscreen() async {
     if (Platform.isWindows) {
       const platform = MethodChannel('com.predidit.kazumi/intent');
@@ -444,11 +375,11 @@ class Utils {
 
   // 进入全屏显示
   static Future<void> enterFullScreen({bool lockOrientation = true}) async {
-    if (Platform.isWindows) {
-      await enterWindowsFullscreen();
-      return;
-    }
-    if (Platform.isLinux || Platform.isMacOS) {
+    // if (Platform.isWindows) {
+    //   await enterWindowsFullscreen();
+    //   return;
+    // }
+    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
       await windowManager.setFullScreen(true);
       return;
     }
@@ -469,10 +400,10 @@ class Utils {
 
   //退出全屏显示
   static Future<void> exitFullScreen({bool lockOrientation = true}) async {
-    if (Platform.isWindows) {
-      await exitWindowsFullscreen();
-    }
-    if (Platform.isLinux || Platform.isMacOS) {
+    // if (Platform.isWindows) {
+    //   await exitWindowsFullscreen();
+    // }
+    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
       await windowManager.setFullScreen(false);
     }
     late SystemUiMode mode = SystemUiMode.edgeToEdge;
@@ -546,7 +477,31 @@ class Utils {
     return '秋';
   }
 
+  // 进入桌面设备小窗模式
+  static Future<void> enterDesktopPIPWindow() async {
+    await windowManager.setAlwaysOnTop(true);
+    await windowManager.setSize(const Size(480, 270));
+  }
+
+  // 退出桌面设备小窗模式
+  static Future<void> exitDesktopPIPWindow() async {
+    bool isLowResolution = await Utils.isLowResolution();
+    await windowManager.setAlwaysOnTop(false);
+    await windowManager.setSize(isLowResolution ? const Size(800, 600) : const Size(1280, 860));
+    await windowManager.center();
+  }
+
   static bool isSameSeason(DateTime d1, DateTime d2) {
     return d1.year == d2.year && (d1.month - d2.month).abs() <= 2;
+  }
+
+  static String buildShadersAbsolutePath(String baseDirectory, List<String> shaders) {
+    List<String> absolutePaths = shaders.map((shader) {
+      return path.join(baseDirectory, shader);
+    }).toList();
+    if (Platform.isWindows) {
+      return absolutePaths.join(';');
+    }
+    return absolutePaths.join(':');
   }
 }

@@ -37,13 +37,17 @@
               java-version: '17'
               distribution: 'temurin'          
           - name: Set up Flutter
-            uses: subosito/flutter-action@v2
+            uses: subosito/flutter-action@v2.16.0
             with:
               channel: stable
               flutter-version-file: pubspec.yaml
           - name: Get Flutter dependencies
             run: flutter pub get
             shell: bash
+          - name: Inject DanDan API Credentials
+            run: |
+              sed -i "s/kvpx7qkqjh/${{ secrets.DANDANAPI_APPID }}/g" lib/utils/mortis.dart
+              sed -i "s/rABUaBLqdz7aCSi3fe88ZDj2gwga9Vax/${{ secrets.DANDANAPI_KEY }}/g" lib/utils/mortis.dart
           - name: Build Flutter for Android
             run: flutter build apk --split-per-abi
             shell: bash
@@ -74,30 +78,24 @@
           - name: Enable Git longpaths
             run: git config --system core.longpaths true
           - name: Set up Flutter
-            uses: subosito/flutter-action@v2
+            uses: subosito/flutter-action@v2.16.0
             with:
               channel: stable
               flutter-version-file: pubspec.yaml
-              cache-key: "flutter-:os:-:channel:-:version:-:arch:-:hash:" # optional, change this to force refresh cache
-              cache-path: "${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:" # optional, change this to specify the cache path
-              pub-cache-key: "flutter-pub:os:-:channel:-:version:-:arch:-:hash:" # optional, change this to force refresh cache of dart pub get dependencies
-              pub-cache-path: "${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:" # optional, change this to specify the cache path
           - name: Set up Java
             uses: actions/setup-java@v4
             with:
               distribution: 'temurin'
               java-version: '18'
           - run: flutter pub get
-          - run: flutter build windows
-          # - name: Download FFmpeg Assets
-          #   uses: dsaltares/fetch-gh-release-asset@master
-          #   with:
-          #     repo: 'Predidit/avbuild'
-          #     version: 'tags/1.1.0'
-          #     file: 'ffmpeg_windows_x64.zip'
-          #     token: ${{ secrets.GITHUB_TOKEN }}
-          # - run: Remove-Item -Path build/windows/x64/runner/Release/ffmpeg-7.dll -Force
-          # - run: Expand-Archive -LiteralPath ffmpeg_windows_x64.zip -DestinationPath build/windows/x64/runner/Release      
+          - name: Inject DanDan API Credentials
+            env:
+              DANDANAPI_APPID: ${{ secrets.DANDANAPI_APPID }}
+              DANDANAPI_KEY: ${{ secrets.DANDANAPI_KEY }}
+            run: |
+              (Get-Content -Path 'lib/utils/mortis.dart') -replace "kvpx7qkqjh", "$env:DANDANAPI_APPID" | Set-Content -Path 'lib/utils/mortis.dart'
+              (Get-Content -Path 'lib/utils/mortis.dart') -replace "rABUaBLqdz7aCSi3fe88ZDj2gwga9Vax", "$env:DANDANAPI_KEY" | Set-Content -Path 'lib/utils/mortis.dart'
+          - run: flutter build windows   
           - run: Compress-Archive build/windows/x64/runner/Release/* Kazumi_windows_${env:tag}.zip
           - name: Upload windows outputs
             uses: actions/upload-artifact@v4
@@ -107,6 +105,32 @@
               path: |
                 Kazumi_windows_*.zip
 
+          # Sign Zip
+          - run: New-Item -Path "build/windows/zip_signed_output" -ItemType Directory
+          - name: sign windows zip
+            uses: signpath/github-action-submit-signing-request@v1.1
+            with:
+              api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
+              organization-id: 'fa047255-4772-4be1-b14f-5cfa62635877'
+              project-slug: 'Kazumi'
+              signing-policy-slug: 'release-signing'
+              artifact-configuration-slug: 'Packet'
+              github-artifact-id: '${{ steps.unsigned-windows-zip-artifacts.outputs.artifact-id }}'
+              wait-for-completion: true
+              output-artifact-directory: 'build/windows/zip_signed_output'
+          
+          - name: Upload windows zip signed ouputs
+            uses: actions/upload-artifact@v4
+            id: signed-windows-zip-artifacts
+            with:
+              name: windows_zip_signed_outputs
+              path: build/windows/zip_signed_output/*.zip
+              
+          # Replace Unpacked Artifact with Signed Artifact
+          - name: Replace Unpacked Artifact with Signed Artifact
+            run: Expand-Archive -Path "build/windows/zip_signed_output/Kazumi_windows_${env:tag}.zip" -DestinationPath "build/windows/x64/runner/Release" -Force
+          
+          # Build Unsigned MSIX
           - name: Build unsigned msix
             run: dart run msix:create
           - name: Upload windows msix ouputs
@@ -137,27 +161,6 @@
             with:
               name: windows_msix_signed_outputs
               path: build/windows/msix_signed_output/*.msix
-
-          # Sign Zip
-          - run: New-Item -Path "build/windows/zip_signed_output" -ItemType Directory
-          - name: sign windows zip
-            uses: signpath/github-action-submit-signing-request@v1.1
-            with:
-              api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
-              organization-id: 'fa047255-4772-4be1-b14f-5cfa62635877'
-              project-slug: 'Kazumi'
-              signing-policy-slug: 'release-signing'
-              artifact-configuration-slug: 'Packet'
-              github-artifact-id: '${{ steps.unsigned-windows-zip-artifacts.outputs.artifact-id }}'
-              wait-for-completion: true
-              output-artifact-directory: 'build/windows/zip_signed_output'
-          
-          - name: Upload windows zip signed ouputs
-            uses: actions/upload-artifact@v4
-            id: signed-windows-zip-artifacts
-            with:
-              name: windows_zip_signed_outputs
-              path: build/windows/zip_signed_output/*.zip
 
       flutter-build-linux:
         name: "Release for Linux"
@@ -191,13 +194,17 @@
                   unixodbc-dev libpq-dev libxxhash-dev libaom-dev              
             shell: bash
           - name: Set up Flutter
-            uses: subosito/flutter-action@v2
+            uses: subosito/flutter-action@v2.16.0
             with:
               channel: stable
               flutter-version-file: pubspec.yaml
           - name: Get Flutter dependencies
             run: flutter pub get
             shell: bash
+          - name: Inject DanDan API Credentials
+            run: |
+              sed -i "s/kvpx7qkqjh/${{ secrets.DANDANAPI_APPID }}/g" lib/utils/mortis.dart
+              sed -i "s/rABUaBLqdz7aCSi3fe88ZDj2gwga9Vax/${{ secrets.DANDANAPI_KEY }}/g" lib/utils/mortis.dart
           - name: Build Flutter for Linux
             run: flutter build linux
             shell: bash
@@ -270,11 +277,15 @@
           - name: Echo build progress
             run: echo "Kazumi_ios_${{ env.tag }}.ipa build progress"
           - name: Set up Flutter
-            uses: subosito/flutter-action@v2
+            uses: subosito/flutter-action@v2.16.0
             with:
               channel: stable
               flutter-version-file: pubspec.yaml
           - run: flutter pub get
+          - name: Inject DanDan API Credentials
+            run: |
+              sed -i '' "s/kvpx7qkqjh/${{ secrets.DANDANAPI_APPID }}/g" lib/utils/mortis.dart
+              sed -i '' "s/rABUaBLqdz7aCSi3fe88ZDj2gwga9Vax/${{ secrets.DANDANAPI_KEY }}/g" lib/utils/mortis.dart
           - name: Build IPA
             run: |
               flutter build ios --release --no-codesign
@@ -302,11 +313,15 @@
           - name: Echo build progress
             run: echo "Kazumi_macos_${{ env.tag }}.dmg build progress"
           - name: Set up Flutter
-            uses: subosito/flutter-action@v2
+            uses: subosito/flutter-action@v2.16.0
             with:
               channel: stable
               flutter-version-file: pubspec.yaml
           - run: flutter pub get
+          - name: Inject DanDan API Credentials
+            run: |
+              sed -i '' "s/kvpx7qkqjh/${{ secrets.DANDANAPI_APPID }}/g" lib/utils/mortis.dart
+              sed -i '' "s/rABUaBLqdz7aCSi3fe88ZDj2gwga9Vax/${{ secrets.DANDANAPI_KEY }}/g" lib/utils/mortis.dart
           - run: flutter build macos --release
           - name: Create DMG
             run: |

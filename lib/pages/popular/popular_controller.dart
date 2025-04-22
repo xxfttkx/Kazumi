@@ -11,15 +11,14 @@ class PopularController = _PopularController with _$PopularController;
 abstract class _PopularController with Store {
   final ScrollController scrollController = ScrollController();
 
-  String keyword = '';
-  String searchKeyword = '';
-  bool isSearching = false;
-
   @observable
   String currentTag = '';
 
   @observable
   ObservableList<BangumiItem> bangumiList = ObservableList.of([]);
+
+  @observable
+  ObservableList<BangumiItem> trendList = ObservableList.of([]);
 
   double scrollOffset = 0.0;
 
@@ -53,18 +52,26 @@ abstract class _PopularController with Store {
     isTimeOut = bangumiList.isEmpty;
   }
 
-  void setSearchKeyword(String s) {
-    isSearching = s.isNotEmpty;
-    searchKeyword = s;
+  void setCurrentTag(String s) {
+    currentTag = s;
   }
 
-  Future<bool> queryBangumiListFeed() async {
+  void clearBangumiList() {
+    bangumiList.clear();
+  }
+
+  Future<void> queryBangumiByTrend({String type = 'add'}) async {
+    if (type == 'init') {
+      trendList.clear();
+    }
     isLoadingMore = true;
-    int randomNumber = Random().nextInt(5000) + 1;
+    int randomNumber = Random().nextInt(1000) + 1;
     var tag = currentTag;
     var result = await BangumiHTTP.getBangumiList(rank: randomNumber, tag: tag);
     if (currentTag == tag) {
-      endQuery(result);
+      bangumiList.addAll(result);
+      isLoadingMore = false;
+      isTimeOut = bangumiList.isEmpty;
       return true;
     }
     return false;
@@ -73,11 +80,13 @@ abstract class _PopularController with Store {
   Future<bool> queryBangumiListFeedByTag(String tag) async {
     currentTag = tag;
     isLoadingMore = true;
-    int randomNumber = Random().nextInt(5000) + 1;
+    int randomNumber = Random().nextInt(1000) + 1;
     var result = await BangumiHTTP.getBangumiList(rank: randomNumber, tag: tag);
     if (currentTag == tag) {
-      clearList();
-      endQuery(result);
+      bangumiList.clear();
+      bangumiList.addAll(result);
+      isLoadingMore = false;
+      isTimeOut = bangumiList.isEmpty;
       return true;
     }
     return false;
@@ -91,8 +100,9 @@ abstract class _PopularController with Store {
     currentTag = '';
     isLoadingMore = true;
     var result = await BangumiHTTP.bangumiSearch(keyword);
-    clearList();
+    bangumiList.clear();
     bangumiList.addAll(result);
     isLoadingMore = false;
+    isTimeOut = bangumiList.isEmpty;
   }
 }

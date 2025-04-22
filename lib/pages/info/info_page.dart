@@ -1,21 +1,26 @@
+import 'dart:io';
 import 'dart:ui';
+import 'package:kazumi/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:kazumi/bean/dialog/dialog_helper.dart';
+import 'package:kazumi/bean/widget/collect_button.dart';
+import 'package:kazumi/bean/widget/embedded_native_control_area.dart';
+import 'package:kazumi/utils/constants.dart';
+import 'package:kazumi/utils/storage.dart';
 import 'package:kazumi/pages/info/info_controller.dart';
 import 'package:kazumi/bean/card/bangumi_info_card.dart';
-import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:kazumi/pages/info/source_sheet.dart';
 import 'package:kazumi/plugins/plugins_controller.dart';
 import 'package:kazumi/pages/video/video_controller.dart';
-import 'package:kazumi/pages/popular/popular_controller.dart';
 import 'package:kazumi/bean/card/network_img_layer.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
-import 'package:kazumi/request/query_manager.dart';
-import 'package:kazumi/utils/utils.dart';
 import 'package:logger/logger.dart';
 import 'package:kazumi/utils/logger.dart';
-import 'package:kazumi/pages/info/comments_sheet.dart';
+import 'package:kazumi/pages/info/info_tabview.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:window_manager/window_manager.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:kazumi/modules/bangumi/bangumi_item.dart';
+import 'package:kazumi/bean/appbar/drag_to_move_bar.dart' as dtb;
 
 class InfoPage extends StatefulWidget {
   const InfoPage({super.key});
@@ -24,49 +29,51 @@ class InfoPage extends StatefulWidget {
   State<InfoPage> createState() => _InfoPageState();
 }
 
-class _InfoPageState extends State<InfoPage>
-    with SingleTickerProviderStateMixin {
-  final InfoController infoController = Modular.get<InfoController>();
+class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
+  /// Don't use modular singleton here. We may have multiple info pages.
+  /// Use a new instance of InfoController for each info page.
+  final InfoController infoController = InfoController();
   final VideoPageController videoPageController =
       Modular.get<VideoPageController>();
   final PluginsController pluginsController = Modular.get<PluginsController>();
   final PopularController popularController = Modular.get<PopularController>();
   late TabController tabController;
-  final Map<String, Map<String,int>> pluginToEpisodesNum = {};
+
   /// Concurrent query manager
   late QueryManager queryManager;
 
   @override
   void initState() {
     super.initState();
-    // Because the gap between different bangumi API reponse is too large, sometimes we need to query the bangumi info again
+    infoController.bangumiItem = inputBangumiIten;
+    infoController.characterList.clear();
+    infoController.commentsList.clear();
+    infoController.staffList.clear();
+    infoController.pluginSearchResponseList.clear();
+    videoPageController.currentEpisode = 1;
+    // Because the gap between different bangumi API response is too large, sometimes we need to query the bangumi info again
     // We need the type parameter to determine whether to attach the new data to the old data
-    // We can't generally replace the old data with the new data, because the old data containes images url, update them will cause the image to reload and flicker
-    if (infoController.bangumiItem.summary == '' || infoController.bangumiItem.tags.isEmpty) {
+    // We can't generally replace the old data with the new data, because the old data contains images url, update them will cause the image to reload and flicker
+    if (infoController.bangumiItem.summary == '' ||
+        infoController.bangumiItem.votesCount.isEmpty) {
       queryBangumiInfoByID(infoController.bangumiItem.id, type: 'attach');
     }
     queryManager = QueryManager();
+    queryManager.querySource(popularController.keyword);
     tabController =
         TabController(length: pluginsController.pluginList.length, vsync: this);
-    tabController.addListener(() {
-      onPluginChange();
-    });
-    queryManager.querySource(popularController.keyword).then((_) {
-      if(mounted){
-        onPluginChange(first: true);
-      }
-    });
   }
 
   @override
   void dispose() {
-    tabController.removeListener(() {
-      onPluginChange();
-    });
     queryManager.cancel();
     infoController.characterList.clear();
     infoController.commentsList.clear();
+    infoController.staffList.clear();
+    infoController.pluginSearchResponseList.clear();
     videoPageController.currentEpisode = 1;
+    sourceTabController.dispose();
+    infoTabController.dispose();
     super.dispose();
   }
 
@@ -81,6 +88,9 @@ class _InfoPageState extends State<InfoPage>
 
   @override
   Widget build(BuildContext context) {
+    final List<String> tabs = <String>['概览', '吐槽', '角色', '评论', '制作人员'];
+    final bool showWindowButton = GStorage.setting
+        .get(SettingBoxKey.showWindowButton, defaultValue: false);
     return PopScope(
       canPop: true,
       child: Stack(
@@ -185,7 +195,49 @@ class _InfoPageState extends State<InfoPage>
                           ))
                       .toList(),
                 ),
-                pluginTabBarView(),
+                Expanded(
+                  child: Observer(
+                    builder: (context) => TabBarView(
+                      controller: tabController,
+                      children: List.generate(
+                          pluginsController.pluginList.length, (pluginIndex) {
+                        var plugin = pluginsController.pluginList[pluginIndex];
+                        var cardList = <Widget>[];
+                        for (var searchResponse
+                            in infoController.pluginSearchResponseList) {
+                          if (searchResponse.pluginName == plugin.name) {
+                            for (var searchItem in searchResponse.data) {
+                              cardList.add(Card(
+                                color: Colors.transparent,
+                                child: ListTile(
+                                  tileColor: Colors.transparent,
+                                  title: Text(searchItem.name),
+                                  onTap: () async {
+                                    KazumiDialog.showLoading(msg: '获取中');
+                                    videoPageController.currentPlugin = plugin;
+                                    videoPageController.title = searchItem.name;
+                                    videoPageController.src = searchItem.src;
+                                    try {
+                                      await infoController.queryRoads(
+                                          searchItem.src, plugin.name);
+                                      KazumiDialog.dismiss();
+                                      Modular.to.pushNamed('/video/');
+                                    } catch (e) {
+                                      KazumiLogger()
+                                          .log(Level.error, e.toString());
+                                      KazumiDialog.dismiss();
+                                    }
+                                  },
+                                ),
+                              ));
+                            }
+                          }
+                        }
+                        return ListView(children: cardList);
+                      }),
+                    ),
+                  ),
+                )
               ],
             ),
             floatingActionButton: FloatingActionButton(

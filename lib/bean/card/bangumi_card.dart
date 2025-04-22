@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:kazumi/bean/card/network_img_layer.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
+import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/utils/constants.dart';
 import 'package:kazumi/utils/utils.dart';
-import 'package:kazumi/modules/bangumi/bangumi_item.dart';
-import 'package:kazumi/bean/card/network_img_layer.dart';
-import 'package:kazumi/pages/info/info_controller.dart';
-import 'package:kazumi/pages/popular/popular_controller.dart';
 
 // 视频卡片 - 垂直布局
 class BangumiCardV extends StatelessWidget {
@@ -14,20 +12,15 @@ class BangumiCardV extends StatelessWidget {
     super.key,
     required this.bangumiItem,
     this.canTap = true,
-    this.longPress,
-    this.longPressEnd,
+    this.enableHero = true,
   });
 
   final BangumiItem bangumiItem;
   final bool canTap;
-  final Function()? longPress;
-  final Function()? longPressEnd;
+  final bool enableHero;
 
   @override
   Widget build(BuildContext context) {
-    final InfoController infoController = Modular.get<InfoController>();
-    final PopularController popularController =
-        Modular.get<PopularController>();
     return Card(
       elevation: 0,
       clipBehavior: Clip.hardEdge,
@@ -41,17 +34,10 @@ class BangumiCardV extends StatelessWidget {
               );
               return;
             }
-            infoController.bangumiItem = bangumiItem;
-            if (!popularController.isSearching) {
-              popularController.keyword = bangumiItem.nameCn == ''
-                  ? bangumiItem.name
-                  : (bangumiItem.nameCn);
-            } else {
-              popularController.keyword = popularController.searchKeyword;
-            }
-            Modular.to.pushNamed('/info/');
+            Modular.to.pushNamed('/info/', arguments: bangumiItem);
           },
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ClipRRect(
                 borderRadius: const BorderRadius.only(
@@ -65,11 +51,21 @@ class BangumiCardV extends StatelessWidget {
                   child: LayoutBuilder(builder: (context, boxConstraints) {
                     final double maxWidth = boxConstraints.maxWidth;
                     final double maxHeight = boxConstraints.maxHeight;
-                    return NetworkImgLayer(
-                      src: bangumiItem.images['large'] ?? '',
-                      width: maxWidth,
-                      height: maxHeight,
-                    );
+                    return enableHero
+                        ? Hero(
+                            transitionOnUserGestures: true,
+                            tag: bangumiItem.id,
+                            child: NetworkImgLayer(
+                              src: bangumiItem.images['large'] ?? '',
+                              width: maxWidth,
+                              height: maxHeight,
+                            ),
+                          )
+                        : NetworkImgLayer(
+                            src: bangumiItem.images['large'] ?? '',
+                            width: maxWidth,
+                            height: maxHeight,
+                          );
                   }),
                 ),
               ),
@@ -84,35 +80,29 @@ class BangumiCardV extends StatelessWidget {
 
 class BangumiContent extends StatelessWidget {
   const BangumiContent({super.key, required this.bangumiItem});
+
   final BangumiItem bangumiItem;
+
   @override
   Widget build(BuildContext context) {
+    final ts = MediaQuery.textScalerOf(context);
+
     return Expanded(
       child: Padding(
         // 多列
-        padding: const EdgeInsets.fromLTRB(5, 3, 5, 0),
+        padding: const EdgeInsets.fromLTRB(5, 3, 5, 1),
         // 单列
         // padding: const EdgeInsets.fromLTRB(14, 10, 4, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                    child: Text(
-                  bangumiItem.nameCn,
-                  textAlign: TextAlign.start,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.3,
-                  ),
-                  maxLines: Utils.isDesktop() || Utils.isTablet() ? 3 : 2,
-                  overflow: TextOverflow.ellipsis,
-                )),
-              ],
-            ),
-            const SizedBox(height: 1),
-          ],
+        child: Text(
+          bangumiItem.nameCn,
+          textAlign: TextAlign.start,
+          style: const TextStyle(
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.3,
+          ),
+          textScaler: ts.clamp(maxScaleFactor: 1.1),
+          maxLines: Utils.isDesktop() || Utils.isTablet() ? 3 : 2,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );

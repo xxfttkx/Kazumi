@@ -9,6 +9,22 @@ part of 'video_controller.dart';
 // ignore_for_file: non_constant_identifier_names, unnecessary_brace_in_string_interps, unnecessary_lambdas, prefer_expression_function_bodies, lines_longer_than_80_chars, avoid_as, avoid_annotating_with_dynamic, no_leading_underscores_for_local_identifiers
 
 mixin _$VideoPageController on _VideoPageController, Store {
+  late final _$episodeCommentsListAtom =
+      Atom(name: '_VideoPageController.episodeCommentsList', context: context);
+
+  @override
+  ObservableList<EpisodeCommentItem> get episodeCommentsList {
+    _$episodeCommentsListAtom.reportRead();
+    return super.episodeCommentsList;
+  }
+
+  @override
+  set episodeCommentsList(ObservableList<EpisodeCommentItem> value) {
+    _$episodeCommentsListAtom.reportWrite(value, super.episodeCommentsList, () {
+      super.episodeCommentsList = value;
+    });
+  }
+
   late final _$loadingAtom =
       Atom(name: '_VideoPageController.loading', context: context);
 
@@ -73,6 +89,22 @@ mixin _$VideoPageController on _VideoPageController, Store {
     });
   }
 
+  late final _$isPipAtom =
+      Atom(name: '_VideoPageController.isPip', context: context);
+
+  @override
+  bool get isPip {
+    _$isPipAtom.reportRead();
+    return super.isPip;
+  }
+
+  @override
+  set isPip(bool value) {
+    _$isPipAtom.reportWrite(value, super.isPip, () {
+      super.isPip = value;
+    });
+  }
+
   late final _$showTabBodyAtom =
       Atom(name: '_VideoPageController.showTabBody', context: context);
 
@@ -124,10 +156,12 @@ mixin _$VideoPageController on _VideoPageController, Store {
   @override
   String toString() {
     return '''
+episodeCommentsList: ${episodeCommentsList},
 loading: ${loading},
 currentEpisode: ${currentEpisode},
 currentRoad: ${currentRoad},
 isFullscreen: ${isFullscreen},
+isPip: ${isPip},
 showTabBody: ${showTabBody},
 historyOffset: ${historyOffset},
 roadList: ${roadList}

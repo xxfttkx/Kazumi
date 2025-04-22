@@ -1,16 +1,17 @@
 import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/modules/collect/collect_module.dart';
-import 'package:kazumi/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/utils/constants.dart';
 import 'package:kazumi/pages/menu/menu.dart';
-import 'package:kazumi/pages/menu/side_menu.dart';
 import 'package:kazumi/bean/card/bangumi_card.dart';
 import 'package:kazumi/pages/collect/collect_controller.dart';
 import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:kazumi/bean/widget/collect_button.dart';
+import 'package:hive/hive.dart';
+import 'package:kazumi/utils/storage.dart';
 
 class CollectPage extends StatefulWidget {
   const CollectPage({super.key});
@@ -22,9 +23,11 @@ class CollectPage extends StatefulWidget {
 class _CollectPageState extends State<CollectPage>
     with SingleTickerProviderStateMixin {
   final CollectController collectController = Modular.get<CollectController>();
-  dynamic navigationBarState;
-  TabController? controller;
+  late NavigationBarState navigationBarState;
+  TabController? tabController;
   bool showDelete = false;
+  bool syncCollectiblesing = false;
+  Box setting = GStorage.setting;
 
   void onBackPressed(BuildContext context) {
     navigationBarState.updateSelectedIndex(0);
@@ -35,14 +38,15 @@ class _CollectPageState extends State<CollectPage>
   void initState() {
     super.initState();
     collectController.loadCollectibles();
-    controller = TabController(vsync: this, length: tabs.length);
-    if (Utils.isCompact()) {
-      navigationBarState =
-          Provider.of<NavigationBarState>(context, listen: false);
-    } else {
-      navigationBarState =
-          Provider.of<SideNavigationBarState>(context, listen: false);
-    }
+    tabController = TabController(vsync: this, length: tabs.length);
+    navigationBarState =
+        Provider.of<NavigationBarState>(context, listen: false);
+  }
+
+  @override
+  void dispose() {
+    tabController?.dispose();
+    super.dispose();
   }
 
   final List<Tab> tabs = const <Tab>[
@@ -66,9 +70,10 @@ class _CollectPageState extends State<CollectPage>
         },
         child: Scaffold(
           appBar: SysAppBar(
+            needTopOffset: false,
             toolbarHeight: 104,
             bottom: TabBar(
-              controller: controller,
+              controller: tabController,
               tabs: tabs,
               indicatorColor: Theme.of(context).colorScheme.primary,
             ),
@@ -85,11 +90,37 @@ class _CollectPageState extends State<CollectPage>
                       : const Icon(Icons.edit))
             ],
           ),
-          body: Padding(
-              padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
-              child: Observer(builder: (context) {
-                return renderBody(orientation);
-              })),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () async {
+              bool webDavenable = await setting.get(SettingBoxKey.webDavEnable,
+                  defaultValue: false);
+              if (!webDavenable) {
+                KazumiDialog.showToast(message: 'webDav未启用, 同步功能不可用');
+                return;
+              }
+              if (showDelete) {
+                KazumiDialog.showToast(message: '编辑模式无法执行同步');
+                return;
+              }
+              if (syncCollectiblesing) {
+                return;
+              }
+              setState(() {
+                syncCollectiblesing = true;
+              });
+              await collectController.syncCollectibles();
+              setState(() {
+                syncCollectiblesing = false;
+              });
+            },
+            child: syncCollectiblesing
+                ? const SizedBox(
+                    width: 32, height: 32, child: CircularProgressIndicator())
+                : const Icon(Icons.cloud_sync),
+          ),
+          body: Observer(builder: (context) {
+            return renderBody(orientation);
+          }),
         ),
       );
     });
@@ -98,7 +129,7 @@ class _CollectPageState extends State<CollectPage>
   Widget renderBody(Orientation orientation) {
     if (collectController.collectibles.isNotEmpty) {
       return TabBarView(
-        controller: controller,
+        controller: tabController,
         children: contentGrid(collectController.collectibles, orientation),
       );
     } else {
@@ -124,61 +155,64 @@ class _CollectPageState extends State<CollectPage>
     for (List<CollectedBangumi> collectedBangumiRenderItem
         in collectedBangumiRenderItemList) {
       gridViewList.add(
-        CustomScrollView(
-          slivers: [
-            SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                mainAxisSpacing: StyleString.cardSpace - 2,
-                crossAxisSpacing: StyleString.cardSpace,
-                crossAxisCount: crossCount,
-                mainAxisExtent:
-                    MediaQuery.of(context).size.width / crossCount / 0.65 +
-                        MediaQuery.textScalerOf(context).scale(32.0),
+        Padding(
+          padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
+          child: CustomScrollView(
+            slivers: [
+              SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  mainAxisSpacing: StyleString.cardSpace - 2,
+                  crossAxisSpacing: StyleString.cardSpace,
+                  crossAxisCount: crossCount,
+                  mainAxisExtent:
+                      MediaQuery.of(context).size.width / crossCount / 0.65 +
+                          MediaQuery.textScalerOf(context).scale(32.0),
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (BuildContext context, int index) {
+                    return collectedBangumiRenderItem.isNotEmpty
+                        ? Stack(
+                            children: [
+                              BangumiCardV(
+                                bangumiItem: collectedBangumiRenderItem[index]
+                                    .bangumiItem,
+                                canTap: !showDelete,
+                              ),
+                              Positioned(
+                                right: 5,
+                                bottom: 5,
+                                child: showDelete
+                                    ? Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .secondaryContainer,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: CollectButton(
+                                          bangumiItem:
+                                              collectedBangumiRenderItem[index]
+                                                  .bangumiItem,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSecondaryContainer,
+                                        ),
+                                      )
+                                    : Container(),
+                              ),
+                            ],
+                          )
+                        : null;
+                  },
+                  childCount: collectedBangumiRenderItem.isNotEmpty
+                      ? collectedBangumiRenderItem.length
+                      : 10,
+                ),
               ),
-              delegate: SliverChildBuilderDelegate(
-                (BuildContext context, int index) {
-                  return collectedBangumiRenderItem.isNotEmpty
-                      ? Stack(
-                          children: [
-                            BangumiCardV(
-                              bangumiItem:
-                                  collectedBangumiRenderItem[index].bangumiItem,
-                              canTap: !showDelete,
-                            ),
-                            Positioned(
-                              right: 5,
-                              bottom: 5,
-                              child: showDelete
-                                  ? Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .secondaryContainer,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: CollectButton(
-                                        bangumiItem:
-                                            collectedBangumiRenderItem[index]
-                                                .bangumiItem,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSecondaryContainer,
-                                      ),
-                                    )
-                                  : Container(),
-                            ),
-                          ],
-                        )
-                      : null;
-                },
-                childCount: collectedBangumiRenderItem.isNotEmpty
-                    ? collectedBangumiRenderItem.length
-                    : 10,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }

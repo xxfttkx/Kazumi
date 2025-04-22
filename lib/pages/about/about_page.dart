@@ -1,15 +1,18 @@
 import 'dart:io';
+
+import 'package:card_settings_ui/card_settings_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:hive/hive.dart';
+import 'package:kazumi/bean/appbar/sys_app_bar.dart';
+import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/pages/my/my_controller.dart';
 import 'package:kazumi/request/api.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:kazumi/bean/appbar/sys_app_bar.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:kazumi/bean/dialog/dialog_helper.dart';
-import 'package:card_settings_ui/card_settings_ui.dart';
+import 'package:kazumi/utils/mortis.dart';
 import 'package:kazumi/utils/storage.dart';
+import 'package:kazumi/utils/utils.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -19,10 +22,14 @@ class AboutPage extends StatefulWidget {
 }
 
 class _AboutPageState extends State<AboutPage> {
+  final exitBehaviorTitles = <String>['退出 Kazumi', '最小化至托盘', '每次都询问'];
+
   late dynamic defaultDanmakuArea;
   late dynamic defaultThemeMode;
   late dynamic defaultThemeColor;
   Box setting = GStorage.setting;
+  late int exitBehavior =
+      setting.get(SettingBoxKey.exitBehavior, defaultValue: 2);
   late bool autoUpdate;
   double _cacheSizeMB = -1;
   final MyController myController = Modular.get<MyController>();
@@ -30,8 +37,7 @@ class _AboutPageState extends State<AboutPage> {
   @override
   void initState() {
     super.initState();
-    autoUpdate =
-        setting.get(SettingBoxKey.autoUpdate, defaultValue: true);
+    autoUpdate = setting.get(SettingBoxKey.autoUpdate, defaultValue: true);
     _getCacheSize();
   }
 
@@ -119,7 +125,6 @@ class _AboutPageState extends State<AboutPage> {
 
   @override
   Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {});
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
@@ -141,7 +146,9 @@ class _AboutPageState extends State<AboutPage> {
                       },
                       title: const Text('开源许可证'),
                       description: const Text('查看所有开源许可证'),
-                    ),],),
+                    ),
+                  ],
+                ),
                 SettingsSection(
                   title: const Text('外部链接'),
                   tiles: [
@@ -175,8 +182,45 @@ class _AboutPageState extends State<AboutPage> {
                             mode: LaunchMode.externalApplication);
                       },
                       title: const Text('弹幕来源'),
+                      description: Text('ID: ${mortis['id']}'),
                       value: const Text('DanDanPlay'),
-                    ),],),
+                    ),
+                  ],
+                ),
+                if (Utils.isDesktop()) // 之后如果有非桌面平台的新选项可以移除
+                  SettingsSection(
+                    title: const Text('默认行为'),
+                    tiles: [
+                      // if (Utils.isDesktop())
+                      SettingsTile.navigation(
+                        title: const Text('关闭时'),
+                        value: Text(exitBehaviorTitles[exitBehavior]),
+                        onPressed: (_) {
+                          KazumiDialog.show(builder: (context) {
+                            return SimpleDialog(
+                              clipBehavior: Clip.antiAlias,
+                              title: const Text('关闭时'),
+                              children: [
+                                for (int i = 0; i < 3; i++)
+                                  RadioListTile(
+                                    value: i,
+                                    groupValue: exitBehavior,
+                                    onChanged: (int? value) {
+                                      exitBehavior = value ?? 2;
+                                      setting.put(
+                                          SettingBoxKey.exitBehavior, value);
+                                      KazumiDialog.dismiss();
+                                      setState(() {});
+                                    },
+                                    title: Text(exitBehaviorTitles[i]),
+                                  ),
+                              ],
+                            );
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 SettingsSection(
                   tiles: [
                     SettingsTile.navigation(
@@ -184,7 +228,9 @@ class _AboutPageState extends State<AboutPage> {
                         Modular.to.pushNamed('/settings/about/logs');
                       },
                       title: const Text('错误日志'),
-                    ),],),
+                    ),
+                  ],
+                ),
                 SettingsSection(
                   tiles: [
                     SettingsTile.navigation(
@@ -195,7 +241,9 @@ class _AboutPageState extends State<AboutPage> {
                       value: _cacheSizeMB == -1
                           ? const Text('统计中...')
                           : Text('${_cacheSizeMB.toStringAsFixed(2)}MB'),
-                    ),],),
+                    ),
+                  ],
+                ),
                 SettingsSection(
                   title: const Text('应用更新'),
                   tiles: [

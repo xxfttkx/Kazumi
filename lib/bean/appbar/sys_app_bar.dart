@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'package:kazumi/bean/dialog/dialog_helper.dart';
-import 'package:kazumi/utils/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:window_manager/window_manager.dart';
 import 'package:flutter/services.dart';
+import 'package:kazumi/bean/widget/embedded_native_control_area.dart';
+import 'package:kazumi/utils/storage.dart';
+import 'package:kazumi/utils/utils.dart';
+import 'package:window_manager/window_manager.dart';
 
 class SysAppBar extends StatelessWidget implements PreferredSizeWidget {
   final double? toolbarHeight;
@@ -24,6 +25,8 @@ class SysAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   final PreferredSizeWidget? bottom;
 
+  final bool needTopOffset;
+
   const SysAppBar(
       {super.key,
       this.toolbarHeight,
@@ -34,28 +37,12 @@ class SysAppBar extends StatelessWidget implements PreferredSizeWidget {
       this.actions,
       this.leading,
       this.leadingWidth,
-      this.bottom});
+      this.bottom,
+      this.needTopOffset = true});
 
-  void _handleCloseEvent() {
-    KazumiDialog.show(
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('退出确认'),
-            content: const Text('您想要退出 Kazumi 吗？'),
-            actions: [
-              TextButton(
-                  onPressed: () => exit(0), child: const Text('退出 Kazumi')),
-              TextButton(
-                  onPressed: () {
-                    KazumiDialog.dismiss();
-                    windowManager.hide();
-                  },
-                  child: const Text('最小化至托盘')),
-              const TextButton(
-                  onPressed: KazumiDialog.dismiss, child: Text('取消')),
-            ],
-          );
-        });
+  bool showWindowButton() {
+    return GStorage.setting
+        .get(SettingBoxKey.showWindowButton, defaultValue: false);
   }
 
   @override
@@ -66,39 +53,77 @@ class SysAppBar extends StatelessWidget implements PreferredSizeWidget {
     }
     if (Utils.isDesktop()) {
       // acs.add(IconButton(onPressed: () => windowManager.minimize(), icon: const Icon(Icons.minimize)));
-      acs.add(Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: CloseButton(onPressed: () => _handleCloseEvent())));
+      if (!showWindowButton()) {
+        acs.add(CloseButton(onPressed: () => windowManager.close()));
+      }
+      acs.add(const SizedBox(width: 8));
     }
     return GestureDetector(
-      // behavior: HitTestBehavior.translucent,
       onPanStart: (_) =>
           (Utils.isDesktop()) ? windowManager.startDragging() : null,
       child: AppBar(
-          toolbarHeight: preferredSize.height,
-          scrolledUnderElevation: 0.0,
-          title: title,
-          centerTitle: Platform.isIOS ? true : false,
-          actions: acs,
-          leading: leading,
-          leadingWidth: leadingWidth,
-          backgroundColor: backgroundColor,
-          elevation: elevation,
-          shape: shape,
-          bottom: bottom,
-          systemOverlayStyle: SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Theme.of(context).brightness ==
-                    Brightness.light
-                ? Brightness.dark
-                : Brightness.light,
-            systemNavigationBarColor: Colors.transparent,
-            systemNavigationBarDividerColor: Colors.transparent,
-          )
-          ),
+        toolbarHeight: preferredSize.height,
+        scrolledUnderElevation: 0.0,
+        title: title != null
+            ? EmbeddedNativeControlArea(
+                requireOffset: needTopOffset,
+                child: title!,
+              )
+            : null,
+        centerTitle: Platform.isIOS ? true : false,
+        actions: acs.map((e) {
+          return EmbeddedNativeControlArea(
+            requireOffset: needTopOffset,
+            child: e,
+          );
+        }).toList(),
+        leading: leading != null
+            ? EmbeddedNativeControlArea(
+                requireOffset: needTopOffset,
+                child: leading!,
+              )
+            : Navigator.canPop(context)
+                ? EmbeddedNativeControlArea(
+                    requireOffset: needTopOffset,
+                    child: IconButton(
+                      onPressed: () {
+                        Navigator.maybePop(context);
+                      },
+                      icon: Icon(Icons.arrow_back),
+                    ),
+                  )
+                : null,
+        leadingWidth: leadingWidth,
+        backgroundColor: backgroundColor,
+        elevation: elevation,
+        shape: shape,
+        bottom: bottom,
+        automaticallyImplyLeading: false,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness:
+              Theme.of(context).brightness == Brightness.light
+                  ? Brightness.dark
+                  : Brightness.light,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarDividerColor: Colors.transparent,
+        ),
+      ),
     );
   }
 
   @override
-  Size get preferredSize => Size.fromHeight(toolbarHeight ?? kToolbarHeight);
+  Size get preferredSize {
+    // macOS needs to add 22(macOS title bar height)
+    // to default toolbar height to build appbar like normal
+    if (Platform.isMacOS && needTopOffset && showWindowButton()) {
+      if (toolbarHeight != null) {
+        return Size.fromHeight(toolbarHeight! + 22);
+      } else {
+        return const Size.fromHeight(kToolbarHeight + 22);
+      }
+    } else {
+      return Size.fromHeight(toolbarHeight ?? kToolbarHeight);
+    }
+  }
 }

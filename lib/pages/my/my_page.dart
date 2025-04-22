@@ -2,10 +2,8 @@ import 'package:card_settings_ui/card_settings_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/bean/appbar/sys_app_bar.dart';
-import 'package:provider/provider.dart';
 import 'package:kazumi/pages/menu/menu.dart';
-import 'package:kazumi/pages/menu/side_menu.dart';
-import 'package:kazumi/utils/utils.dart';
+import 'package:provider/provider.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -15,7 +13,7 @@ class MyPage extends StatefulWidget {
 }
 
 class _MyPageState extends State<MyPage> {
-  dynamic navigationBarState;
+  late NavigationBarState navigationBarState;
 
   void onBackPressed(BuildContext context) {
     navigationBarState.updateSelectedIndex(0);
@@ -25,13 +23,8 @@ class _MyPageState extends State<MyPage> {
   @override
   void initState() {
     super.initState();
-    if (Utils.isCompact()) {
-      navigationBarState =
-          Provider.of<NavigationBarState>(context, listen: false);
-    } else {
-      navigationBarState =
-          Provider.of<SideNavigationBarState>(context, listen: false);
-    }
+    navigationBarState =
+        Provider.of<NavigationBarState>(context, listen: false);
   }
 
   @override
@@ -45,7 +38,7 @@ class _MyPageState extends State<MyPage> {
         onBackPressed(context);
       },
       child: Scaffold(
-        appBar: const SysAppBar(title: Text('我的')),
+        appBar: const SysAppBar(title: Text('我的'), needTopOffset: false),
         body: Center(
           child: SizedBox(
             width: (MediaQuery.of(context).size.width > 1000) ? 1000 : null,

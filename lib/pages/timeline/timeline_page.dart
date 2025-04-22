@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:kazumi/pages/menu/menu.dart';
-import 'package:kazumi/pages/menu/side_menu.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/pages/timeline/timeline_controller.dart';
 import 'package:kazumi/bean/card/bangumi_card.dart';
@@ -25,25 +24,26 @@ class _TimelinePageState extends State<TimelinePage>
   final TimelineController timelineController =
       Modular.get<TimelineController>();
   bool showingTimeMachineDialog = false;
-  dynamic navigationBarState;
-  TabController? controller;
+  late NavigationBarState navigationBarState;
+  TabController? tabController;
 
   @override
   void initState() {
     super.initState();
     int weekday = DateTime.now().weekday - 1;
-    controller =
+    tabController =
         TabController(vsync: this, length: tabs.length, initialIndex: weekday);
-    if (Utils.isCompact()) {
-      navigationBarState =
-          Provider.of<NavigationBarState>(context, listen: false);
-    } else {
-      navigationBarState =
-          Provider.of<SideNavigationBarState>(context, listen: false);
-    }
+    navigationBarState =
+        Provider.of<NavigationBarState>(context, listen: false);
     if (timelineController.bangumiCalendar.isEmpty) {
       timelineController.init();
     }
+  }
+
+  @override
+  void dispose() {
+    tabController?.dispose();
+    super.dispose();
   }
 
   void onBackPressed(BuildContext context) {
@@ -80,14 +80,9 @@ class _TimelinePageState extends State<TimelinePage>
     Tab(text: '日'),
   ];
 
-  final seasons = [
-    '秋',
-    '夏',
-    '春',
-    '冬'
-  ];
+  final seasons = ['秋', '夏', '春', '冬'];
 
-  String getStringByDateTime(DateTime d){
+  String getStringByDateTime(DateTime d) {
     return d.year.toString() + Utils.getSeasonStringByMonth(d.month);
   }
 
@@ -105,9 +100,10 @@ class _TimelinePageState extends State<TimelinePage>
           },
           child: Scaffold(
             appBar: SysAppBar(
+              needTopOffset: false,
               toolbarHeight: 104,
               bottom: TabBar(
-                controller: controller,
+                controller: tabController,
                 tabs: tabs,
                 indicatorColor: Theme.of(context).colorScheme.primary,
               ),
@@ -115,22 +111,21 @@ class _TimelinePageState extends State<TimelinePage>
                 child: Text(timelineController.seasonString),
                 onTap: () {
                   showingTimeMachineDialog = true;
-                  KazumiDialog.show(
-                    onDismiss: () {
-                      showingTimeMachineDialog = false;
-                    },
-                    builder: (context) {
-                      final currDate = DateTime.now();
-                      final years = List.generate(20, (index) => currDate.year - index);
-                      List<DateTime> buttons = [];
-                      for (final i in years){
-                        for (final s in seasons){
-                          final date = generateDateTime(i, s);
-                          if(currDate.isAfter(date)) {
-                            buttons.add(date);
-                          }
+                  KazumiDialog.show(onDismiss: () {
+                    showingTimeMachineDialog = false;
+                  }, builder: (context) {
+                    final currDate = DateTime.now();
+                    final years =
+                        List.generate(20, (index) => currDate.year - index);
+                    List<DateTime> buttons = [];
+                    for (final i in years) {
+                      for (final s in seasons) {
+                        final date = generateDateTime(i, s);
+                        if (currDate.isAfter(date)) {
+                          buttons.add(date);
                         }
                       }
+                    }
                     return AlertDialog(
                       title: const Text("时间机器"),
                       content: SingleChildScrollView(
@@ -173,9 +168,7 @@ class _TimelinePageState extends State<TimelinePage>
                 },
               ),
             ),
-            body: Padding(
-                padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
-                child: renderBody(orientation)),
+            body: renderBody(orientation),
           ),
         );
       });
@@ -185,7 +178,7 @@ class _TimelinePageState extends State<TimelinePage>
   Widget renderBody(Orientation orientation) {
     if (timelineController.bangumiCalendar.isNotEmpty) {
       return TabBarView(
-        controller: controller,
+        controller: tabController,
         children: contentGrid(timelineController.bangumiCalendar, orientation),
       );
     } else {
@@ -201,27 +194,53 @@ class _TimelinePageState extends State<TimelinePage>
     int crossCount = orientation != Orientation.portrait ? 6 : 3;
     for (dynamic bangumiList in bangumiCalendar) {
       gridViewList.add(
-        CustomScrollView(
-          slivers: [
-            SliverGrid(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                mainAxisSpacing: StyleString.cardSpace - 2,
-                crossAxisSpacing: StyleString.cardSpace,
-                crossAxisCount: crossCount,
-                mainAxisExtent:
-                    MediaQuery.of(context).size.width / crossCount / 0.65 +
-                        MediaQuery.textScalerOf(context).scale(32.0),
+        Padding(
+          padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
+          child: CustomScrollView(
+            slivers: [
+              SliverGrid(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  mainAxisSpacing: StyleString.cardSpace - 2,
+                  crossAxisSpacing: StyleString.cardSpace,
+                  crossAxisCount: crossCount,
+                  mainAxisExtent:
+                      MediaQuery.of(context).size.width / crossCount / 0.65 +
+                          MediaQuery.textScalerOf(context).scale(32.0),
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (BuildContext context, int index) {
+                    return bangumiList.isNotEmpty
+                        ? Stack(
+                            children: [
+                              BangumiCardV(bangumiItem: bangumiList[index]),
+                              Positioned(
+                                right: 4,
+                                top: 4,
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 0),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .tertiaryContainer,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    bangumiList[index]
+                                        .ratingScore
+                                        .toStringAsFixed(1),
+                                  ),
+                                ),
+                              )
+                            ],
+                          )
+                        : null;
+                  },
+                  childCount: bangumiList.isNotEmpty ? bangumiList.length : 10,
+                ),
               ),
-              delegate: SliverChildBuilderDelegate(
-                (BuildContext context, int index) {
-                  return bangumiList.isNotEmpty
-                      ? BangumiCardV(bangumiItem: bangumiList[index])
-                      : null;
-                },
-                childCount: bangumiList.isNotEmpty ? bangumiList.length : 10,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
