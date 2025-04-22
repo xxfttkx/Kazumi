@@ -65,14 +65,11 @@ abstract class _PopularController with Store {
       trendList.clear();
     }
     isLoadingMore = true;
-    int randomNumber = Random().nextInt(5000) + 1;
-    var tag = currentTag;
-    var result = await BangumiHTTP.getBangumiList(rank: randomNumber, tag: tag);
-    if (currentTag == tag) {
-      endQuery(result);
-      return true;
-    }
-    return false;
+    var result =
+        await BangumiHTTP.getBangumiTrendsList(offset: trendList.length);
+    trendList.addAll(result);
+    isLoadingMore = false;
+    isTimeOut = trendList.isEmpty;
   }
 
   Future<bool> queryBangumiListFeedByTag(String tag) async {
