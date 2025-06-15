@@ -8,7 +8,6 @@ import 'package:kazumi/pages/history/history_controller.dart';
 import 'package:kazumi/pages/video/video_controller.dart';
 import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/plugins/plugins_controller.dart';
-import 'package:kazumi/utils/constants.dart';
 import 'package:kazumi/utils/logger.dart';
 import 'package:logger/logger.dart';
 
@@ -95,36 +94,28 @@ class _BangumiHistoryCardVState extends State<BangumiHistoryCardV> {
           }
         },
         child: Padding(
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.all(6),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: StyleString.imgRadius,
-                  topRight: StyleString.imgRadius,
-                  bottomLeft: StyleString.imgRadius,
-                  bottomRight: StyleString.imgRadius,
-                ),
-                child: AspectRatio(
-                  aspectRatio: 0.65,
-                  child: LayoutBuilder(builder: (context, boxConstraints) {
-                    final double maxWidth = boxConstraints.maxWidth;
-                    final double maxHeight = boxConstraints.maxHeight;
-                    return NetworkImgLayer(
-                      src: widget.historyItem.bangumiItem.images['large'] ?? '',
-                      width: maxWidth,
-                      height: maxHeight,
-                    );
-                  }),
-                ),
+              AspectRatio(
+                aspectRatio: 0.65,
+                child: LayoutBuilder(builder: (context, boxConstraints) {
+                  final double maxWidth = boxConstraints.maxWidth;
+                  final double maxHeight = boxConstraints.maxHeight;
+                  return NetworkImgLayer(
+                    src: widget.historyItem.bangumiItem.images['large'] ?? '',
+                    width: maxWidth,
+                    height: maxHeight,
+                  );
+                }),
               ),
-              const SizedBox(width: 15),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Text(
                       widget.historyItem.bangumiItem.nameCn == ''
                           ? widget.historyItem.bangumiItem.name
@@ -137,34 +128,21 @@ class _BangumiHistoryCardVState extends State<BangumiHistoryCardV> {
                       maxLines: 1,
                     ),
                     const SizedBox(height: 12),
-                    // 测试 因为API问题评分功能搁置
                     Wrap(
                       spacing: 4,
                       runSpacing: 4,
                       children: [
                         propertyChip(
-                          title: '番剧源',
+                          title: '来源',
                           value: widget.historyItem.adapterName,
+                          showTitle: true,
                         ),
                         propertyChip(
-                          title: '上次看到',
+                          title: '看到',
                           value: widget.historyItem.lastWatchEpisodeName.isEmpty
                               ? '第${widget.historyItem.lastWatchEpisode}话'
                               : widget.historyItem.lastWatchEpisodeName,
-                        ),
-                        propertyChip(
-                          title: '排名',
-                          value: widget.historyItem.bangumiItem.rank.toString(),
                           showTitle: true,
-                        ),
-                        // 只有 '番剧'
-                        // propertyChip(
-                        //   title: '种类',
-                        //   value: widget.historyItem.bangumiItem.type == 2 ? '番剧' : '其他',
-                        // ),
-                        propertyChip(
-                          title: '首播',
-                          value: widget.historyItem.bangumiItem.airDate,
                         ),
                       ],
                     )
@@ -172,14 +150,31 @@ class _BangumiHistoryCardVState extends State<BangumiHistoryCardV> {
                 ),
               ),
               Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CollectButton(
-                    onClose: () {
-                      FocusScope.of(context).unfocus();
-                    },
-                    bangumiItem: widget.historyItem.bangumiItem,
-                    color: Theme.of(context).colorScheme.onSecondaryContainer,
-                  ),
+                  if (!widget.showDelete) ...[
+                    CollectButton(
+                      onClose: () {
+                        FocusScope.of(context).unfocus();
+                      },
+                      bangumiItem: widget.historyItem.bangumiItem,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.open_in_new,
+                        color:
+                            Theme.of(context).colorScheme.onSecondaryContainer,
+                      ),
+                      tooltip: '番剧详情',
+                      onPressed: () {
+                        Modular.to.pushNamed(
+                          '/info/',
+                          arguments: widget.historyItem.bangumiItem,
+                        );
+                      },
+                    ),
+                  ],
                   if (widget.showDelete)
                     IconButton(
                       icon: Icon(
@@ -190,7 +185,7 @@ class _BangumiHistoryCardVState extends State<BangumiHistoryCardV> {
                       onPressed: () {
                         historyController.deleteHistory(widget.historyItem);
                       },
-                    )
+                    ),
                 ],
               ),
             ],
