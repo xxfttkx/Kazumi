@@ -583,6 +583,24 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                               ),
                             ),
                           ),
+                          IconButton(
+                            color: Colors.white,
+                            icon: Icon(Icons.arrow_back),
+                            onPressed: () {
+                              playerController.seek(
+                                  playerController.currentPosition -
+                                      Duration(seconds: 10));
+                            },
+                          ),
+                          IconButton(
+                            color: Colors.white,
+                            icon: Icon(Icons.arrow_forward),
+                            onPressed: () {
+                              playerController.seek(
+                                  playerController.currentPosition +
+                                      Duration(seconds: 10));
+                            },
+                          ),
                           // 跳过
                           forwardIcon(),
                           if (Utils.isDesktop() &&

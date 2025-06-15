@@ -63,6 +63,8 @@ abstract class _VideoPageController with Store {
   final PluginsController pluginsController = Modular.get<PluginsController>();
   final HistoryController historyController = Modular.get<HistoryController>();
 
+  String url = '';
+
   Future<void> changeEpisode(int episode,
       {int currentRoad = 0, int offset = 0}) async {
     currentEpisode = episode;
@@ -76,6 +78,7 @@ abstract class _VideoPageController with Store {
     } else {
       urlItem = currentPlugin.baseUrl + urlItem;
     }
+    urlItem = url.isEmpty?urlItem:url;
     final webviewItemController = Modular.get<WebviewItemController>();
     await webviewItemController.loadUrl(
         urlItem, currentPlugin.useNativePlayer, currentPlugin.useLegacyParser,

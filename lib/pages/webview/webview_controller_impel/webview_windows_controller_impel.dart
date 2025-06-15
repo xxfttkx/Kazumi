@@ -130,6 +130,16 @@ class WebviewWindowsItemControllerImpel
           });
         }
       }
+      if (event.toString().startsWith('m3u8')) {
+        final m3u8 = event.toString().substring('m3u8:'.length);
+        isIframeLoaded = true;
+        isVideoSourceLoaded = true;
+        videoLoadingEventController.add(false);
+        logEventController
+            .add('Loading video source ${Utils.decodeVideoSource(m3u8)}');
+        unloadPage();
+        videoParserEventController.add((Utils.decodeVideoSource(m3u8), offset));
+      }
       if (event.toString().contains('videoMessage:')) {
         String messageItem =
             Uri.encodeFull(event.toString().replaceFirst('videoMessage:', ''));
@@ -150,7 +160,7 @@ class WebviewWindowsItemControllerImpel
     });
   }
 
-  Future<void> parseIframeUrl() async {
+  Future<void>parseIframeUrl() async {
     await webviewController!.executeScript('''
       var iframes = document.getElementsByTagName('iframe');
       window.chrome.webview.postMessage('iframeMessage:' + 'The number of iframe tags is' + iframes.length);
@@ -167,6 +177,17 @@ class WebviewWindowsItemControllerImpel
               break; 
           }
       }
+
+      try {
+    const m3u8Url = window.hlsUrl;
+    if (m3u8Url) {
+      window.chrome.webview.postMessage('m3u8:' + m3u8Url);
+    } else {
+      window.chrome.webview.postMessage('window.hlsUrl is still undefined');
+    }
+  } catch (e) {
+    window.chrome.webview.postMessage('error: ' + e.message);
+  }
   ''');
   }
 

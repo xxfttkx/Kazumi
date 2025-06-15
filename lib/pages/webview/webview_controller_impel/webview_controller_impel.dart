@@ -20,7 +20,7 @@ class WebviewItemControllerImpel
     webviewController ??= WebViewController();
     initEventController.add(true);
   }
-
+  
   @override
   Future<void> loadUrl(String url, bool useNativePlayer, bool useLegacyParser,
       {int offset = 0}) async {
@@ -169,6 +169,17 @@ class WebviewItemControllerImpel
               IframeRedirectBridge.postMessage(src);
               break; 
           }
+      }
+
+      try {
+        const m3u8Url = window.hlsUrl;
+        if (m3u8Url) {
+          window.chrome.webview.postMessage('m3u8:' + m3u8Url);
+        } else {
+          window.chrome.webview.postMessage('window.hlsUrl is still undefined');
+        }
+      } catch (e) {
+        window.chrome.webview.postMessage('error: ' + e.message);
       }
   ''');
   }

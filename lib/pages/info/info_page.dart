@@ -47,6 +47,7 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
   bool staffQueryTimeout = false;
 
   final inputBangumiIten = Modular.args.data as BangumiItem;
+  final TextEditingController urlController = TextEditingController();
 
   Future<void> loadCharacters() async {
     if (charactersIsLoading) return;
@@ -264,6 +265,21 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                           children: [
                             // No background image when loading to make loading looks better
                             if (!infoController.isLoading)
+                              TextField(
+                                controller: urlController,
+                                decoration: InputDecoration(
+                                  labelText: '请输入网址',
+                                  hintText: 'https://example.com/???',
+                                  prefixIcon: Icon(Icons.language),
+                                  border: OutlineInputBorder(),
+                                ),
+                                keyboardType: TextInputType.url,
+                                onSubmitted: (value) {
+                                  debugPrint('用户输入的网址是: $value');
+                                  videoPageController.url = value;
+                                  // 可以在这里触发加载网页逻辑
+                                },
+                              ),
                               Positioned.fill(
                                 bottom: kTextTabBarHeight,
                                 child: IgnorePointer(
