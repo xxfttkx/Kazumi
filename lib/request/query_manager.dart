@@ -55,15 +55,14 @@ class QueryManager {
 
     for (Plugin plugin in pluginsController.pluginList) {
       if (_isCancelled) return;
-
+      
       plugin.queryBangumi(keyword, shouldRethrow: true).then((result) {
         if (_isCancelled) return;
-
-        infoController.pluginSearchStatus[plugin.name] = 'success';
         if (result.data.isNotEmpty) {
+          infoController.pluginSearchStatus[plugin.name] = 'success';
           pluginsController.validityTracker.markSearchValid(plugin.name);
+          _controller.add(result);
         }
-        _controller.add(result);
       }).catchError((error) {
         if (_isCancelled) return;
 

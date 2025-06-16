@@ -233,6 +233,9 @@ class _PopularPageState extends State<PopularPage>
 
   Widget tagFilter() {
     List<String> tags = [
+      '异世界',
+      '卖肉',
+      '肉番',
       '日常',
       '原创',
       '校园',
@@ -247,7 +250,6 @@ class _PopularPageState extends State<PopularPage>
       '轻改',
       '偶像',
       '治愈',
-      '异世界',
     ];
 
     final ScrollController tagScrollController = ScrollController();

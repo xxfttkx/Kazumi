@@ -261,81 +261,69 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
                     flexibleSpace: FlexibleSpaceBar(
                       collapseMode: CollapseMode.pin,
                       background: Observer(builder: (context) {
-                        return Stack(
+                        return Column(
                           children: [
-                            // No background image when loading to make loading looks better
-                            if (!infoController.isLoading)
-                              TextField(
-                                controller: urlController,
-                                decoration: InputDecoration(
-                                  labelText: '请输入网址',
-                                  hintText: 'https://example.com/???',
-                                  prefixIcon: Icon(Icons.language),
-                                  border: OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.url,
-                                onSubmitted: (value) {
-                                  debugPrint('用户输入的网址是: $value');
-                                  videoPageController.url = value;
-                                  // 可以在这里触发加载网页逻辑
-                                },
-                              ),
-                              Positioned.fill(
-                                bottom: kTextTabBarHeight,
-                                child: IgnorePointer(
-                                  child: Opacity(
-                                    opacity: 0.4,
-                                    child: LayoutBuilder(
-                                      builder: (context, boxConstraints) {
-                                        return ImageFiltered(
-                                          imageFilter: ImageFilter.blur(
-                                              sigmaX: 15.0, sigmaY: 15.0),
-                                          child: ShaderMask(
-                                            shaderCallback: (Rect bounds) {
-                                              return const LinearGradient(
-                                                begin: Alignment.topCenter,
-                                                end: Alignment.bottomCenter,
-                                                colors: [
-                                                  Colors.white,
-                                                  Colors.transparent,
-                                                ],
-                                                stops: [0.8, 1],
-                                              ).createShader(bounds);
-                                            },
-                                            child: NetworkImgLayer(
-                                              src: infoController.bangumiItem
-                                                      .images['large'] ??
-                                                  '',
-                                              width: boxConstraints.maxWidth,
-                                              height: boxConstraints.maxHeight,
-                                              fadeInDuration: const Duration(
-                                                  milliseconds: 0),
-                                              fadeOutDuration: const Duration(
-                                                  milliseconds: 0),
-                                            ),
-                                          ),
-                                        );
-                                      },
+                            Stack(
+                              children: [
+                                // No background image when loading to make loading looks better
+                                  Positioned.fill(
+                                    bottom: kTextTabBarHeight,
+                                    child: IgnorePointer(
+                                      child: Opacity(
+                                        opacity: 0.4,
+                                        child: LayoutBuilder(
+                                          builder: (context, boxConstraints) {
+                                            return ImageFiltered(
+                                              imageFilter: ImageFilter.blur(
+                                                  sigmaX: 15.0, sigmaY: 15.0),
+                                              child: ShaderMask(
+                                                shaderCallback: (Rect bounds) {
+                                                  return const LinearGradient(
+                                                    begin: Alignment.topCenter,
+                                                    end: Alignment.bottomCenter,
+                                                    colors: [
+                                                      Colors.white,
+                                                      Colors.transparent,
+                                                    ],
+                                                    stops: [0.8, 1],
+                                                  ).createShader(bounds);
+                                                },
+                                                child: NetworkImgLayer(
+                                                  src: infoController.bangumiItem
+                                                          .images['large'] ??
+                                                      '',
+                                                  width: boxConstraints.maxWidth,
+                                                  height: boxConstraints.maxHeight,
+                                                  fadeInDuration: const Duration(
+                                                      milliseconds: 0),
+                                                  fadeOutDuration: const Duration(
+                                                      milliseconds: 0),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                SafeArea(
+                                  bottom: false,
+                                  child: EmbeddedNativeControlArea(
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                            16, kToolbarHeight, 16, 0),
+                                        child: BangumiInfoCardV(
+                                          bangumiItem: infoController.bangumiItem,
+                                          isLoading: infoController.isLoading,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            SafeArea(
-                              bottom: false,
-                              child: EmbeddedNativeControlArea(
-                                child: Align(
-                                  alignment: Alignment.topCenter,
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        16, kToolbarHeight, 16, 0),
-                                    child: BangumiInfoCardV(
-                                      bangumiItem: infoController.bangumiItem,
-                                      isLoading: infoController.isLoading,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                              ],
+                            ),inputURL(),
                           ],
                         );
                       }),
@@ -399,4 +387,25 @@ class _InfoPageState extends State<InfoPage> with TickerProviderStateMixin {
       ),
     );
   }
+
+  Widget inputURL() {
+    return infoController.isLoading
+        ? Center(child: CircularProgressIndicator())
+        : TextField(
+            controller: urlController,
+            decoration: InputDecoration(
+              labelText: '请输入网址',
+              hintText: 'https://example.com/???',
+              prefixIcon: Icon(Icons.language),
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.url,
+            onSubmitted: (value) {
+              debugPrint('用户输入的网址是: $value');
+              videoPageController.url = value;
+              // 可以触发加载逻辑
+            },
+          );
+  }
+
 }
